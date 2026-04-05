@@ -1,0 +1,42 @@
+package com.vulinh.data.entity;
+
+import module java.base;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
+
+// To avoid "user" identifier
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Account extends AbstractAuditableEntity<UUID> {
+
+  @Serial private static final long serialVersionUID = 0L;
+
+  @Id @UuidGenerator UUID id;
+
+  String username;
+
+  String email;
+
+  String firstName;
+
+  String lastName;
+
+  @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+  @JoinColumn(name = "account_id")
+  @Builder.Default
+  Set<AccountCredential> credentials = new LinkedHashSet<>();
+
+  @ManyToMany
+  @JoinTable(
+      name = "account_client_role",
+      joinColumns = @JoinColumn(name = "account_id"),
+      inverseJoinColumns = @JoinColumn(name = "client_role_id"))
+  @Builder.Default
+  Set<ClientRole> clientRoles = new LinkedHashSet<>();
+}
