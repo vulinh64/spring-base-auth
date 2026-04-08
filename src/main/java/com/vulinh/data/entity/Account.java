@@ -13,6 +13,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SuppressWarnings("java:S2160")
 public class Account extends AbstractAuditableEntity<UUID> {
 
   @Serial private static final long serialVersionUID = 0L;
@@ -30,7 +31,7 @@ public class Account extends AbstractAuditableEntity<UUID> {
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "account_id")
   @Builder.Default
-  Set<AccountCredential> credentials = new LinkedHashSet<>();
+  private Set<AccountCredential> credentials = new LinkedHashSet<>();
 
   @ManyToMany
   @JoinTable(
@@ -38,5 +39,5 @@ public class Account extends AbstractAuditableEntity<UUID> {
       joinColumns = @JoinColumn(name = "account_id"),
       inverseJoinColumns = @JoinColumn(name = "client_role_id"))
   @Builder.Default
-  Set<ClientRole> clientRoles = new LinkedHashSet<>();
+  private Set<ClientRole> clientRoles = new LinkedHashSet<>();
 }

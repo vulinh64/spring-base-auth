@@ -13,6 +13,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SuppressWarnings("java:S2160")
 public class Client extends AbstractAuditableEntity<UUID> {
 
   @Serial private static final long serialVersionUID = 0L;
@@ -33,5 +34,5 @@ public class Client extends AbstractAuditableEntity<UUID> {
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "client_id")
   @Builder.Default
-  List<ClientRole> roles = new ArrayList<>();
+  private List<ClientRole> roles = new ArrayList<>();
 }

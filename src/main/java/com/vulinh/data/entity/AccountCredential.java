@@ -12,6 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SuppressWarnings("java:S2160")
 public class AccountCredential extends AbstractAuditableEntity<UUID> {
 
   @Serial private static final long serialVersionUID = 0L;
