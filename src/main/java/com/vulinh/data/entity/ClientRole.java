@@ -1,18 +1,21 @@
 package com.vulinh.data.entity;
 
+import module java.base;
+
 import jakarta.persistence.*;
-import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"client_id", "role_name"}))
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SuppressWarnings("java:S2160")
 public class ClientRole extends AbstractAuditableEntity<UUID> {
+
+  @Serial private static final long serialVersionUID = 0L;
 
   @Id @UuidGenerator UUID id;
 
