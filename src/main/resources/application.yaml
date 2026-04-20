@@ -1,24 +1,32 @@
-
 application-properties:
   security:
     issuer-server: ${ISSUER_SERVER:http://localhost:8080}
-    token-delivery: ${TOKEN_DELIVERY:BODY}
+    token-delivery: ${TOKEN_DELIVERY:COOKIE}
+    signing-key: ${SIGNING_KEY:Ed25519}
+  bootstrap:
+    peer-database: ${BOOTSTRAP_PEER_DATABASE:true}
 spring:
   datasource:
-    url: jdbc:hsqldb:file:${user.home}/.hsqldb/spring-base-auth/db;shutdown=true
-    username: SA
-    password:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/spring-base-auth}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  liquibase:
+    enabled: false
   jpa:
     open-in-view: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.HSQLDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   cache:
     type: caffeine
     caffeine:
       spec: maximumSize=100,expireAfterWrite=300s
     cache-names: clients-by-id,clients-by-client-id,passwords
   threads.virtual.enabled: true
+logging:
+  level:
+    org.springframework.security: DEBUG
 decorator.datasource.p6spy:
   logging: CUSTOM
   custom-appender-class: com.vulinh.utils.MyP6SpyLogging

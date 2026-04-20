@@ -8,7 +8,7 @@ import org.springframework.security.oauth2.server.resource.web.DefaultBearerToke
 
 public class CookieBearerTokenResolver implements BearerTokenResolver {
 
-  private static final String COOKIE_NAME = "auth_access_token";
+  private static final String COOKIE_NAME = "access_token";
 
   private final DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
 

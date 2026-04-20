@@ -1,31 +1,17 @@
 package com.vulinh.service;
 
 import com.vulinh.annotation.ExecutionTime;
-import com.vulinh.configuration.ApplicationProperties;
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.RefreshRequest;
 import com.vulinh.data.dto.TokenResult;
 import com.vulinh.data.dto.TokenType;
 import com.vulinh.data.entity.AccountCredential.CredentialType;
-import com.vulinh.data.entity.ClientRole;
-import com.vulinh.data.repository.AccountCredentialRepository;
 import com.vulinh.data.repository.AccountRepository;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Instant;
-import java.util.HexFormat;
-import java.util.List;
-import java.util.Map;
+import com.vulinh.service.credential.CredentialStrategies;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
-import org.springframework.security.oauth2.jwt.JwsHeader;
-import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Service;
 
@@ -34,14 +20,10 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
   private final AccountRepository accountRepository;
-  private final AccountCredentialRepository credentialRepository;
   private final RegisteredClientRepository registeredClientRepository;
-  private final ApplicationProperties applicationProperties;
-
-  private final JwtEncoder jwtEncoder;
   private final JwtDecoder jwtDecoder;
-
-  private final PasswordVerifier passwordVerifier;
+  private final TokenMinter tokenMinter;
+  private final CredentialStrategies credentialStrategies;
   private final BruteForceProtection bruteForceProtection;
 
   @ExecutionTime
@@ -52,12 +34,7 @@ public class AuthService {
         Optional.ofNullable(registeredClientRepository.findByClientId(request.clientId()))
             .orElseThrow(() -> new IllegalArgumentException("Invalid client"));
 
-    var credentialType =
-        switch (request.grantType()) {
-          case "password" -> CredentialType.PASSWORD;
-          case "otp" -> CredentialType.OTP;
-          default -> throw new IllegalArgumentException("Unsupported grant type");
-        };
+    var credentialType = CredentialType.fromGrantType(request.grantType());
 
     var account =
         accountRepository
@@ -70,92 +47,25 @@ public class AuthService {
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
 
-    switch (credentialType) {
-      case PASSWORD -> {
-        if (!passwordVerifier.matches(request.password(), credential.getMetadata())) {
-          bruteForceProtection.recordFailure(request.username());
-          throw new IllegalArgumentException("Invalid credentials");
-        }
-      }
-      case OTP -> {
-        if (credential.getExpiresAt() != null && Instant.now().isAfter(credential.getExpiresAt())) {
-          bruteForceProtection.recordFailure(request.username());
-          throw new IllegalArgumentException("OTP expired");
-        }
-        if (!credential.getMetadata().equals(hashOtp(request.otp()))) {
-          bruteForceProtection.recordFailure(request.username());
-          throw new IllegalArgumentException("Invalid credentials");
-        }
-        credential.setEnabled(false);
-        credentialRepository.save(credential);
-      }
+    try {
+      credentialStrategies.forType(credentialType).verify(request, credential);
+    } catch (RuntimeException e) {
+      bruteForceProtection.recordFailure(request.username());
+      throw e;
     }
 
     bruteForceProtection.recordSuccess(request.username());
 
     var clientUuid = UUID.fromString(client.getId());
+    var roles = accountRepository.findRoleNames(account.getId(), clientUuid);
     var tokenSettings = client.getTokenSettings();
-    var accessTokenTtl = tokenSettings.getAccessTokenTimeToLive();
-    var refreshTokenTtl = tokenSettings.getRefreshTokenTimeToLive();
 
-    var roles =
-        account.getClientRoles().stream()
-            .filter(role -> clientUuid.equals(role.getClientId()))
-            .map(ClientRole::getRoleName)
-            .toList();
-
-    var now = Instant.now();
-    var issuer = applicationProperties.security().issuerServer();
-
-    var accountId = account.getId().toString();
-    var clientIdStr = request.clientId();
-
-    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-      var accessFuture =
-          executor.submit(
-              () ->
-                  jwtEncoder
-                      .encode(
-                          JwtEncoderParameters.from(
-                              JwsHeader.with(SignatureAlgorithm.ES256).build(),
-                              JwtClaimsSet.builder()
-                                  .id(UUID.randomUUID().toString())
-                                  .issuer(issuer)
-                                  .subject(accountId)
-                                  .audience(List.of(issuer))
-                                  .issuedAt(now)
-                                  .expiresAt(now.plus(accessTokenTtl))
-                                  .claim("typ", TokenType.BEARER.getTypeName())
-                                  .claim("azp", clientIdStr)
-                                  .claim("resource_access", Map.of(clientIdStr, Map.of("roles", roles)))
-                                  .build()))
-                      .getTokenValue());
-
-      var refreshFuture =
-          executor.submit(
-              () ->
-                  jwtEncoder
-                      .encode(
-                          JwtEncoderParameters.from(
-                              JwsHeader.with(SignatureAlgorithm.ES256).build(),
-                              JwtClaimsSet.builder()
-                                  .id(UUID.randomUUID().toString())
-                                  .issuer(issuer)
-                                  .subject(accountId)
-                                  .audience(List.of(issuer))
-                                  .issuedAt(now)
-                                  .expiresAt(now.plus(refreshTokenTtl))
-                                  .claim("azp", clientIdStr)
-                                  .claim("typ", TokenType.REFRESH.getTypeName())
-                                  .build()))
-                      .getTokenValue());
-
-      return new TokenResult(
-          accessFuture.get(), (int) accessTokenTtl.getSeconds(),
-          refreshFuture.get(), (int) refreshTokenTtl.getSeconds());
-    } catch (Exception e) {
-      throw new IllegalStateException("Failed to generate tokens", e);
-    }
+    return tokenMinter.mint(
+        account.getId().toString(),
+        request.clientId(),
+        roles,
+        tokenSettings.getAccessTokenTimeToLive(),
+        tokenSettings.getRefreshTokenTimeToLive());
   }
 
   @ExecutionTime
@@ -173,79 +83,21 @@ public class AuthService {
         Optional.ofNullable(registeredClientRepository.findByClientId(clientIdStr))
             .orElseThrow(() -> new IllegalArgumentException("Invalid client"));
 
+    var accountUuid = UUID.fromString(accountId);
     var clientUuid = UUID.fromString(client.getId());
+
+    accountRepository
+        .findById(accountUuid)
+        .orElseThrow(() -> new IllegalArgumentException("Invalid account"));
+
+    var roles = accountRepository.findRoleNames(accountUuid, clientUuid);
     var tokenSettings = client.getTokenSettings();
-    var accessTokenTtl = tokenSettings.getAccessTokenTimeToLive();
-    var refreshTokenTtl = tokenSettings.getRefreshTokenTimeToLive();
 
-    var account =
-        accountRepository
-            .findById(UUID.fromString(accountId))
-            .orElseThrow(() -> new IllegalArgumentException("Invalid account"));
-
-    var roles =
-        account.getClientRoles().stream()
-            .filter(role -> clientUuid.equals(role.getClientId()))
-            .map(ClientRole::getRoleName)
-            .toList();
-
-    var now = Instant.now();
-    var issuer = applicationProperties.security().issuerServer();
-
-    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-      var accessFuture =
-          executor.submit(
-              () ->
-                  jwtEncoder
-                      .encode(
-                          JwtEncoderParameters.from(
-                              JwsHeader.with(SignatureAlgorithm.ES256).build(),
-                              JwtClaimsSet.builder()
-                                  .id(UUID.randomUUID().toString())
-                                  .issuer(issuer)
-                                  .subject(accountId)
-                                  .audience(List.of(issuer))
-                                  .issuedAt(now)
-                                  .expiresAt(now.plus(accessTokenTtl))
-                                  .claim("typ", TokenType.BEARER.getTypeName())
-                                  .claim("azp", clientIdStr)
-                                  .claim("resource_access", Map.of(clientIdStr, Map.of("roles", roles)))
-                                  .build()))
-                      .getTokenValue());
-
-      var refreshFuture =
-          executor.submit(
-              () ->
-                  jwtEncoder
-                      .encode(
-                          JwtEncoderParameters.from(
-                              JwsHeader.with(SignatureAlgorithm.ES256).build(),
-                              JwtClaimsSet.builder()
-                                  .id(UUID.randomUUID().toString())
-                                  .issuer(issuer)
-                                  .subject(accountId)
-                                  .audience(List.of(issuer))
-                                  .issuedAt(now)
-                                  .expiresAt(now.plus(refreshTokenTtl))
-                                  .claim("azp", clientIdStr)
-                                  .claim("typ", TokenType.REFRESH.getTypeName())
-                                  .build()))
-                      .getTokenValue());
-
-      return new TokenResult(
-          accessFuture.get(), (int) accessTokenTtl.getSeconds(),
-          refreshFuture.get(), (int) refreshTokenTtl.getSeconds());
-    } catch (Exception e) {
-      throw new IllegalStateException("Failed to generate tokens", e);
-    }
-  }
-
-  private static String hashOtp(String otp) {
-    try {
-      var hash = MessageDigest.getInstance("SHA-256").digest(otp.getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(hash);
-    } catch (java.security.NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 not available", e);
-    }
+    return tokenMinter.mint(
+        accountId,
+        clientIdStr,
+        roles,
+        tokenSettings.getAccessTokenTimeToLive(),
+        tokenSettings.getRefreshTokenTimeToLive());
   }
 }

@@ -47,10 +47,10 @@ public class AuthController implements AuthAPI {
     };
   }
 
-  private static Cookie createCookie(String name, String value, int maxAge) {
+  private static Cookie createCookie(String name, String value, long maxAge) {
     var cookie = new Cookie(name, value);
 
-    cookie.setMaxAge(maxAge);
+    cookie.setMaxAge(Math.toIntExact(maxAge));
     cookie.setSecure(true);
     cookie.setHttpOnly(true);
     cookie.setPath("/");

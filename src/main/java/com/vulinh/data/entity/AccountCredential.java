@@ -33,6 +33,14 @@ public class AccountCredential extends AbstractAuditableEntity<UUID> {
 
   public enum CredentialType {
     PASSWORD,
-    OTP
+    OTP;
+
+    public static CredentialType fromGrantType(String grantType) {
+      return switch (grantType) {
+        case "password" -> PASSWORD;
+        case "otp" -> OTP;
+        case null, default -> throw new IllegalArgumentException("Unsupported grant type");
+      };
+    }
   }
 }

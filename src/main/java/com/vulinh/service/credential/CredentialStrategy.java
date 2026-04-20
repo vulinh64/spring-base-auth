@@ -1,0 +1,12 @@
+package com.vulinh.service.credential;
+
+import com.vulinh.data.dto.LoginRequest;
+import com.vulinh.data.entity.AccountCredential;
+import com.vulinh.data.entity.AccountCredential.CredentialType;
+
+public interface CredentialStrategy {
+
+  CredentialType supports();
+
+  void verify(LoginRequest request, AccountCredential credential);
+}
