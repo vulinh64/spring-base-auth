@@ -30,6 +30,9 @@ public class Account extends AbstractAuditableEntity<UUID> {
 
   String lastName;
 
+  @Builder.Default
+  boolean isEnabled = true;
+
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "account_id")
   @Builder.Default

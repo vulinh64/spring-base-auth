@@ -7,6 +7,7 @@ CREATE TABLE account (
     email VARCHAR(255),
     first_name VARCHAR(255),
     last_name VARCHAR(255),
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_by VARCHAR(255),
     updated_by VARCHAR(255),
     created_date_time TIMESTAMP WITH TIME ZONE,
