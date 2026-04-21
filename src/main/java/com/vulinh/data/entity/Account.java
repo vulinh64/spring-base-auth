@@ -4,6 +4,7 @@ import module java.base;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.Accessors;
 import org.hibernate.annotations.UuidGenerator;
 
 // To avoid "user" identifier
@@ -13,6 +14,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Accessors(chain = true)
 @SuppressWarnings("java:S2160")
 public class Account extends AbstractAuditableEntity<UUID> {
 

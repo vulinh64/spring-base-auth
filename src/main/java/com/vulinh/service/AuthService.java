@@ -1,6 +1,5 @@
 package com.vulinh.service;
 
-import com.vulinh.annotation.ExecutionTime;
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.RefreshRequest;
 import com.vulinh.data.dto.TokenResult;
@@ -19,19 +18,17 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthService {
 
+  private final TokenMinter tokenMinter;
+  private final CredentialStrategies credentialStrategies;
+
   private final AccountRepository accountRepository;
   private final RegisteredClientRepository registeredClientRepository;
   private final JwtDecoder jwtDecoder;
-  private final TokenMinter tokenMinter;
-  private final CredentialStrategies credentialStrategies;
-  private final BruteForceProtection bruteForceProtection;
 
-  @ExecutionTime
   public TokenResult login(LoginRequest request) {
-    bruteForceProtection.checkLocked(request.username());
-
     var client =
-        Optional.ofNullable(registeredClientRepository.findByClientId(request.clientId()))
+        Optional.ofNullable(
+                registeredClientRepository.findByClientId(String.valueOf(request.clientId())))
             .orElseThrow(() -> new IllegalArgumentException("Invalid client"));
 
     var credentialType = CredentialType.fromGrantType(request.grantType());
@@ -43,32 +40,19 @@ public class AuthService {
 
     var credential =
         account.getCredentials().stream()
-            .filter(c -> c.getCredentialType() == credentialType && c.isEnabled())
+            .filter(
+                credentials ->
+                    credentials.getCredentialType() == credentialType && credentials.isEnabled())
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
 
-    try {
-      credentialStrategies.forType(credentialType).verify(request, credential);
-    } catch (RuntimeException e) {
-      bruteForceProtection.recordFailure(request.username());
-      throw e;
-    }
+    credentialStrategies.forType(credentialType).verify(request, credential);
 
-    bruteForceProtection.recordSuccess(request.username());
+    var roles = accountRepository.findRoleNames(account.getId(), UUID.fromString(client.getId()));
 
-    var clientUuid = UUID.fromString(client.getId());
-    var roles = accountRepository.findRoleNames(account.getId(), clientUuid);
-    var tokenSettings = client.getTokenSettings();
-
-    return tokenMinter.mint(
-        account.getId().toString(),
-        request.clientId(),
-        roles,
-        tokenSettings.getAccessTokenTimeToLive(),
-        tokenSettings.getRefreshTokenTimeToLive());
+    return tokenMinter.mint(account, roles, client);
   }
 
-  @ExecutionTime
   public TokenResult refresh(RefreshRequest request) {
     var jwt = jwtDecoder.decode(request.refreshToken());
 
@@ -77,27 +61,23 @@ public class AuthService {
     }
 
     var accountId = jwt.getSubject();
-    var clientIdStr = jwt.getClaimAsString("azp");
+    var clientId = jwt.getClaimAsString("azp");
 
     var client =
-        Optional.ofNullable(registeredClientRepository.findByClientId(clientIdStr))
+        Optional.ofNullable(registeredClientRepository.findByClientId(clientId))
             .orElseThrow(() -> new IllegalArgumentException("Invalid client"));
 
     var accountUuid = UUID.fromString(accountId);
-    var clientUuid = UUID.fromString(client.getId());
 
-    accountRepository
-        .findById(accountUuid)
-        .orElseThrow(() -> new IllegalArgumentException("Invalid account"));
+    var account =
+        accountRepository
+            .findById(accountUuid)
+            .orElseThrow(() -> new IllegalArgumentException("Invalid account"));
+
+    var clientUuid = UUID.fromString(clientId);
 
     var roles = accountRepository.findRoleNames(accountUuid, clientUuid);
-    var tokenSettings = client.getTokenSettings();
 
-    return tokenMinter.mint(
-        accountId,
-        clientIdStr,
-        roles,
-        tokenSettings.getAccessTokenTimeToLive(),
-        tokenSettings.getRefreshTokenTimeToLive());
+    return tokenMinter.mint(account, roles, client);
   }
 }

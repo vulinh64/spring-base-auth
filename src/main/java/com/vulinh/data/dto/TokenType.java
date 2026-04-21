@@ -10,6 +10,5 @@ public enum TokenType {
   BEARER("bearer"),
   REFRESH("refresh");
 
-  @JsonValue
-  private final String typeName;
+  @JsonValue private final String typeName;
 }

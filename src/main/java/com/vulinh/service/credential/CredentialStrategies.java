@@ -13,7 +13,7 @@ public class CredentialStrategies {
   private final Map<CredentialType, CredentialStrategy> byType;
 
   public CredentialStrategies(List<CredentialStrategy> strategies) {
-    this.byType =
+    byType =
         strategies.stream()
             .collect(
                 Collectors.toUnmodifiableMap(CredentialStrategy::supports, Function.identity()));
@@ -21,9 +21,11 @@ public class CredentialStrategies {
 
   public CredentialStrategy forType(CredentialType type) {
     var strategy = byType.get(type);
+
     if (strategy == null) {
       throw new IllegalArgumentException("Unsupported credential type: " + type);
     }
+
     return strategy;
   }
 }

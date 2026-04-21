@@ -16,6 +16,16 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OtpCredentialStrategy implements CredentialStrategy {
 
+  private static final MessageDigest SHA256;
+
+  static {
+    try {
+      SHA256 = MessageDigest.getInstance("SHA-256");
+    } catch (NoSuchAlgorithmException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
+
   private final AccountCredentialRepository credentialRepository;
 
   @Override
@@ -28,19 +38,14 @@ public class OtpCredentialStrategy implements CredentialStrategy {
     if (credential.getExpiresAt() != null && Instant.now().isAfter(credential.getExpiresAt())) {
       throw new IllegalArgumentException("OTP expired");
     }
-    if (!credential.getMetadata().equals(hashOtp(request.otp()))) {
+    if (!credential
+        .getMetadata()
+        .equals(
+            HexFormat.of()
+                .formatHex(SHA256.digest(request.otp().getBytes(StandardCharsets.UTF_8))))) {
       throw new IllegalArgumentException("Invalid credentials");
     }
-    credential.setEnabled(false);
-    credentialRepository.save(credential);
-  }
 
-  private static String hashOtp(String otp) {
-    try {
-      var hash = MessageDigest.getInstance("SHA-256").digest(otp.getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(hash);
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 not available", e);
-    }
+    credentialRepository.save(credential.setEnabled(false).setExpiresAt(null));
   }
 }

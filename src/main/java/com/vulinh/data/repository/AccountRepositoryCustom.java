@@ -1,6 +1,5 @@
 package com.vulinh.data.repository;
 
-import com.vulinh.annotation.ExecutionTime;
 import com.vulinh.data.entity.Account;
 import com.vulinh.data.entity.AccountCredential.CredentialType;
 import java.util.List;
@@ -9,9 +8,7 @@ import java.util.UUID;
 
 public interface AccountRepositoryCustom {
 
-  @ExecutionTime
   Optional<Account> fetchForLogin(String username, CredentialType credentialType);
 
-  @ExecutionTime
   List<String> findRoleNames(UUID accountId, UUID clientId);
 }

@@ -33,9 +33,6 @@
         <!-- https://mvnrepository.com/artifact/com.github.auties00/optional -->
         <optional.version>1.0</optional.version>
 
-        <!-- https://mvnrepository.com/artifact/com.github.ben-manes.caffeine/caffeine -->
-        <caffeine.version>3.2.3</caffeine.version>
-
         <!-- this should be fixed by Spring Boot in the future -->
         <commons-lang3.version>3.20.0</commons-lang3.version>
 
@@ -69,9 +66,8 @@
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-            <version>${caffeine.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
             <groupId>org.liquibase</groupId>
@@ -132,6 +128,7 @@
     </dependencies>
 
     <build>
+        <finalName>app</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

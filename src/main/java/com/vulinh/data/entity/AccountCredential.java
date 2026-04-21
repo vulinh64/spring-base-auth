@@ -4,6 +4,7 @@ import module java.base;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.Accessors;
 
 @Entity
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"account_id", "credentialType"}))
@@ -12,6 +13,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Accessors(chain = true)
 @SuppressWarnings("java:S2160")
 public class AccountCredential extends AbstractAuditableEntity<UUID> {
 

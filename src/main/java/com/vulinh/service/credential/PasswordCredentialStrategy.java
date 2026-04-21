@@ -1,17 +1,18 @@
 package com.vulinh.service.credential;
 
+import com.vulinh.annotation.ExecutionTime;
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.entity.AccountCredential;
 import com.vulinh.data.entity.AccountCredential.CredentialType;
-import com.vulinh.service.PasswordVerifier;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class PasswordCredentialStrategy implements CredentialStrategy {
 
-  private final PasswordVerifier passwordVerifier;
+  private final PasswordEncoder passwordEncoder;
 
   @Override
   public CredentialType supports() {
@@ -19,8 +20,9 @@ public class PasswordCredentialStrategy implements CredentialStrategy {
   }
 
   @Override
+  @ExecutionTime
   public void verify(LoginRequest request, AccountCredential credential) {
-    if (!passwordVerifier.matches(request.password(), credential.getMetadata())) {
+    if (!passwordEncoder.matches(request.password(), credential.getMetadata())) {
       throw new IllegalArgumentException("Invalid credentials");
     }
   }

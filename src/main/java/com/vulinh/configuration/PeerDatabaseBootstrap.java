@@ -26,7 +26,7 @@ public class PeerDatabaseBootstrap {
   @PostConstruct
   void createPeerDatabases() throws SQLException {
     if (!applicationProperties.bootstrap().peerDatabase()) {
-      log.info("Peer database bootstrap disabled, skipping");
+      log.info("Peer database bootstrapping disabled, skipping");
       return;
     }
 

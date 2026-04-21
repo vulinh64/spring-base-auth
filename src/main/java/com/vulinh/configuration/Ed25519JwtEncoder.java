@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.security.oauth2.jwt.JoseHeaderNames;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
@@ -31,14 +32,18 @@ public class Ed25519JwtEncoder implements JwtEncoder {
 
   private final KeyPair edKeyPair;
   private final OctetKeyPair edJwkPair;
-  private final ApplicationProperties applicationProperties;
+  private final String algorithm;
 
   public Ed25519JwtEncoder(ApplicationProperties applicationProperties)
       throws NoSuchAlgorithmException {
-    this.applicationProperties = applicationProperties;
-    var signingKey = applicationProperties.security().signingKey();
-    this.edKeyPair = KeyPairGenerator.getInstance(signingKey).generateKeyPair();
-    this.edJwkPair = buildOctetKeyPair(this.edKeyPair, signingKey);
+    var security = applicationProperties.security();
+
+    algorithm = security.signingKey();
+
+    var signingKey = security.signingKey();
+
+    edKeyPair = KeyPairGenerator.getInstance(signingKey).generateKeyPair();
+    edJwkPair = buildOctetKeyPair(edKeyPair, signingKey);
   }
 
   OctetKeyPair getEdJwkPair() {
@@ -48,13 +53,13 @@ public class Ed25519JwtEncoder implements JwtEncoder {
   @Override
   public Jwt encode(JwtEncoderParameters parameters) throws JwtEncodingException {
     var claims = parameters.getClaims();
-    var algorithm = applicationProperties.security().signingKey();
     var keyId = edJwkPair.getKeyID();
 
     try {
       var jwsHeader = new JWSHeader.Builder(resolveJWSAlgorithm(algorithm)).keyID(keyId).build();
 
       var claimsBuilder = new JWTClaimsSet.Builder();
+
       claims
           .getClaims()
           .forEach(
@@ -62,30 +67,33 @@ public class Ed25519JwtEncoder implements JwtEncoder {
                   claimsBuilder.claim(
                       key, value instanceof Instant instant ? Date.from(instant) : value));
 
-      var headerB64 = jwsHeader.toBase64URL();
-      var payloadB64 = new Payload(claimsBuilder.build().toJSONObject()).toBase64URL();
-      var signingInput = headerB64 + "." + payloadB64;
+      var signingInput =
+          jwsHeader.toBase64URL()
+              + "."
+              + new Payload(claimsBuilder.build().toJSONObject()).toBase64URL();
 
       var signer = Signature.getInstance(algorithm);
+
       signer.initSign(edKeyPair.getPrivate());
       signer.update(signingInput.getBytes(StandardCharsets.US_ASCII));
 
       return new Jwt(
-          "%s.%s".formatted(signingInput, Base64URL.encode(signer.sign())),
+          signingInput + "." + Base64URL.encode(signer.sign()),
           claims.getIssuedAt(),
           claims.getExpiresAt(),
-          Map.of("alg", algorithm, "kid", keyId),
+          Map.ofEntries(
+              Map.entry(JoseHeaderNames.ALG, algorithm), Map.entry(JoseHeaderNames.KID, keyId)),
           claims.getClaims());
     } catch (Exception e) {
       throw new JwtEncodingException(
-          "Failed to sign JWT with " + algorithm + ": " + e.getMessage(), e);
+          "Failed to sign JWT with %s: %s".formatted(algorithm, e.getMessage()), e);
     }
   }
 
   static JWSAlgorithm resolveJWSAlgorithm(String name) {
     return switch (name) {
-      case "Ed25519" -> JWSAlgorithm.Ed25519;
-      case "Ed448" -> JWSAlgorithm.Ed448;
+      case "ed25519" -> JWSAlgorithm.Ed25519;
+      case "ed448" -> JWSAlgorithm.Ed448;
       default -> throw new IllegalArgumentException("Unsupported algorithm: " + name);
     };
   }

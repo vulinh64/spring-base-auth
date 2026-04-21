@@ -2,9 +2,9 @@ package com.vulinh.configuration;
 
 import javax.sql.DataSource;
 import liquibase.integration.spring.SpringLiquibase;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
@@ -24,13 +24,6 @@ public class LiquibaseOrchestration {
 
   @Bean
   @Primary
-  @ConfigurationProperties("spring.datasource")
-  DataSourceProperties authDataSourceProperties() {
-    return new DataSourceProperties();
-  }
-
-  @Bean
-  @Primary
   DataSource authDataSource(DataSourceProperties authDataSourceProperties) {
     return authDataSourceProperties.initializeDataSourceBuilder().build();
   }
@@ -38,19 +31,13 @@ public class LiquibaseOrchestration {
   @Bean
   @DependsOn("peerDatabaseBootstrap")
   DataSource springBaseDataSource(DataSourceProperties authDataSourceProperties) {
-    return authDataSourceProperties
-        .initializeDataSourceBuilder()
-        .url(swapDatabase(authDataSourceProperties.getUrl(), "spring-base"))
-        .build();
+    return initializeDataSource(authDataSourceProperties, "spring-base");
   }
 
   @Bean
   @DependsOn("peerDatabaseBootstrap")
   DataSource springBaseEventDataSource(DataSourceProperties authDataSourceProperties) {
-    return authDataSourceProperties
-        .initializeDataSourceBuilder()
-        .url(swapDatabase(authDataSourceProperties.getUrl(), "spring-base-event"))
-        .build();
+    return initializeDataSource(authDataSourceProperties, "spring-base-event");
   }
 
   @Bean
@@ -75,18 +62,28 @@ public class LiquibaseOrchestration {
   private static SpringLiquibase liquibase(DataSource dataSource, String service) {
     var liquibase = new SpringLiquibase();
     liquibase.setDataSource(dataSource);
-    liquibase.setChangeLog(CHANGELOG_ROOT + service + "/db.changelog.yaml");
+    liquibase.setChangeLog("%s%s/db.changelog.yaml".formatted(CHANGELOG_ROOT, service));
     return liquibase;
   }
 
+  private static DataSource initializeDataSource(
+      DataSourceProperties authDataSourceProperties, String databaseName) {
+    return authDataSourceProperties
+        .initializeDataSourceBuilder()
+        .url(interpolateDatabaseName(authDataSourceProperties.getUrl(), databaseName))
+        .build();
+  }
+
   // Swap the database-name segment of a JDBC URL while preserving any query string.
-  // Example: jdbc:postgresql://host:5432/spring-base-auth?sslmode=require
-  //       -> jdbc:postgresql://host:5432/spring-base?sslmode=require
-  private static String swapDatabase(String jdbcUrl, String databaseName) {
+  private static String interpolateDatabaseName(String jdbcUrl, String databaseName) {
     int queryStart = jdbcUrl.indexOf('?');
-    String base = queryStart == -1 ? jdbcUrl : jdbcUrl.substring(0, queryStart);
-    String query = queryStart == -1 ? "" : jdbcUrl.substring(queryStart);
-    int lastSlash = base.lastIndexOf('/');
-    return base.substring(0, lastSlash + 1) + databaseName + query;
+
+    var base = queryStart == -1 ? jdbcUrl : jdbcUrl.substring(0, queryStart);
+
+    return "%s%s%s"
+        .formatted(
+            base.substring(0, base.lastIndexOf('/') + 1),
+            databaseName,
+            queryStart == -1 ? StringUtils.EMPTY : jdbcUrl.substring(queryStart));
   }
 }
