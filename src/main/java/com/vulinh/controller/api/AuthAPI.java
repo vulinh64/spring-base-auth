@@ -1,4 +1,4 @@
-package com.vulinh.controller;
+package com.vulinh.controller.api;
 
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.RefreshRequest;

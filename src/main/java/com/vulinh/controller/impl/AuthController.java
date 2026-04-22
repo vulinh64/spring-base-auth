@@ -1,6 +1,7 @@
-package com.vulinh.controller;
+package com.vulinh.controller.impl;
 
 import com.vulinh.configuration.ApplicationProperties;
+import com.vulinh.controller.api.AuthAPI;
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.RefreshRequest;
 import com.vulinh.data.dto.TokenResult;

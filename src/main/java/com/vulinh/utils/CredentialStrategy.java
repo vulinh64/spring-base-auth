@@ -1,4 +1,4 @@
-package com.vulinh.service.credential;
+package com.vulinh.utils;
 
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.entity.AccountCredential;
