@@ -9,7 +9,12 @@ import org.springframework.lang.NonNull;
 public record ApplicationProperties(Security security, Bootstrap bootstrap) {
 
   public record Security(
-      TokenDelivery tokenDelivery, String issuerServer, String signingKey, String[] noAuthUrls) {
+      TokenDelivery tokenDelivery,
+      String issuerServer,
+      String[] noAuthUrls,
+      String accessTokenCookieName,
+      String refreshTokenCookieName,
+      boolean cookieSecure) {
 
     public enum TokenDelivery {
       COOKIE,
@@ -21,10 +26,18 @@ public record ApplicationProperties(Security security, Bootstrap bootstrap) {
     public boolean equals(Object other) {
       if (other
           instanceof
-          Security(TokenDelivery delivery, String server, String key, String[] authUrls)) {
-        return Objects.equals(signingKey, key)
-            && Objects.equals(issuerServer, server)
+          Security(
+              TokenDelivery delivery,
+              String server,
+              String[] authUrls,
+              String accessCookie,
+              String refreshCookie,
+              boolean secure)) {
+        return Objects.equals(issuerServer, server)
             && Objects.deepEquals(noAuthUrls, authUrls)
+            && Objects.equals(accessTokenCookieName, accessCookie)
+            && Objects.equals(refreshTokenCookieName, refreshCookie)
+            && cookieSecure == secure
             && tokenDelivery == delivery;
       }
       return false;
@@ -32,14 +45,27 @@ public record ApplicationProperties(Security security, Bootstrap bootstrap) {
 
     @Override
     public int hashCode() {
-      return Objects.hash(tokenDelivery, issuerServer, signingKey, Arrays.hashCode(noAuthUrls));
+      return Objects.hash(
+          tokenDelivery,
+          issuerServer,
+          Arrays.hashCode(noAuthUrls),
+          accessTokenCookieName,
+          refreshTokenCookieName,
+          cookieSecure);
     }
 
     @Override
     @NonNull
     public String toString() {
-      return "Security{tokenDelivery=%s, issuerServer='%s', signingKey='%s', noAuthUrls=%s}"
-          .formatted(tokenDelivery, issuerServer, signingKey, Arrays.toString(noAuthUrls));
+      return ("Security{tokenDelivery=%s, issuerServer='%s', noAuthUrls=%s, "
+              + "accessTokenCookieName='%s', refreshTokenCookieName='%s', cookieSecure=%s}")
+          .formatted(
+              tokenDelivery,
+              issuerServer,
+              Arrays.toString(noAuthUrls),
+              accessTokenCookieName,
+              refreshTokenCookieName,
+              cookieSecure);
     }
   }
 

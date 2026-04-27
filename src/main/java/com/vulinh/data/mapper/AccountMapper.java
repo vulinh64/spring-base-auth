@@ -1,6 +1,6 @@
 package com.vulinh.data.mapper;
 
-import com.vulinh.data.dto.AccountBasicResponse;
+import com.vulinh.data.dto.response.AccountBasicResponse;
 import com.vulinh.data.entity.Account;
 import org.mapstruct.Builder;
 import org.mapstruct.Mapper;

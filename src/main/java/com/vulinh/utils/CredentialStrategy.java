@@ -8,5 +8,5 @@ public interface CredentialStrategy {
 
   CredentialType supports();
 
-  void verify(LoginRequest request, AccountCredential credential);
+  AccountCredential verify(LoginRequest request);
 }

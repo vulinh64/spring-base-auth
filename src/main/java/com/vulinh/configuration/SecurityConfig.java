@@ -1,11 +1,18 @@
 package com.vulinh.configuration;
 
+import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.KeyUse;
+import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,7 +25,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.web.SecurityFilterChain;
@@ -38,7 +47,8 @@ public class SecurityConfig {
   @Bean
   @Order(1)
   SecurityFilterChain authorizationServerFilterChain(HttpSecurity http) throws Exception {
-    var authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer.authorizationServer();
+    var authorizationServerConfigurer =
+        OAuth2AuthorizationServerConfigurer.authorizationServer().oidc(Customizer.withDefaults());
 
     return http.securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())
         .with(authorizationServerConfigurer, Customizer.withDefaults())
@@ -66,23 +76,39 @@ public class SecurityConfig {
         .oauth2ResourceServer(
             oauth2 ->
                 oauth2
-                    .bearerTokenResolver(new CookieBearerTokenResolver())
+                    .bearerTokenResolver(
+                        new CookieBearerTokenResolver(
+                            applicationProperties.security().accessTokenCookieName()))
                     .jwt(Customizer.withDefaults()))
         .build();
   }
 
   @Bean
-  JWKSource<SecurityContext> jwkSource(Ed25519JwtEncoder encoder) {
-    return new ImmutableJWKSet<>(new JWKSet(encoder.getEdJwkPair()));
+  JWKSource<SecurityContext> jwkSource() throws Exception {
+    var keyPair = KeyPairGenerator.getInstance("RSA");
+    keyPair.initialize(2048);
+    var rsa = keyPair.generateKeyPair();
+
+    var rsaKey =
+        new RSAKey.Builder((RSAPublicKey) rsa.getPublic())
+            .privateKey((RSAPrivateKey) rsa.getPrivate())
+            .keyID(UUID.randomUUID().toString())
+            .keyUse(KeyUse.SIGNATURE)
+            .algorithm(JWSAlgorithm.RS256)
+            .build();
+
+    return new ImmutableJWKSet<>(new JWKSet(rsaKey));
+  }
+
+  @Bean
+  JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
+    return new NimbusJwtEncoder(jwkSource);
   }
 
   @Bean
   JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
     var processor = new DefaultJWTProcessor<>();
-    processor.setJWSKeySelector(
-        new JWSVerificationKeySelector<>(
-            Ed25519JwtEncoder.resolveJWSAlgorithm(applicationProperties.security().signingKey()),
-            jwkSource));
+    processor.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, jwkSource));
     return new NimbusJwtDecoder(processor);
   }
 

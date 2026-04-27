@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,30 +26,18 @@ public class AuthService {
   private final RegisteredClientRepository registeredClientRepository;
   private final JwtDecoder jwtDecoder;
 
+  @Transactional
   public TokenResult login(LoginRequest request) {
     var client =
         Optional.ofNullable(
-                registeredClientRepository.findByClientId(String.valueOf(request.clientId())))
+                registeredClientRepository.findByClientId(request.clientId()))
             .orElseThrow(() -> new IllegalArgumentException("Invalid client"));
 
     var credentialType = CredentialType.fromGrantType(request.grantType());
 
-    var account =
-        accountRepository
-            .fetchForLogin(request.username(), credentialType)
-            .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+    var account = credentialStrategies.forType(credentialType).verify(request).getAccount();
 
-    var credential =
-        account.getCredentials().stream()
-            .filter(
-                credentials ->
-                    credentials.getCredentialType() == credentialType && credentials.isEnabled())
-            .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
-
-    credentialStrategies.forType(credentialType).verify(request, credential);
-
-    var roles = accountRepository.findRoleNames(account.getId(), UUID.fromString(client.getId()));
+    var roles = accountRepository.findRoleNames(account.getId(), client.getId());
 
     return tokenMinter.mint(account, roles, client);
   }
@@ -74,9 +63,7 @@ public class AuthService {
             .findById(accountUuid)
             .orElseThrow(() -> new IllegalArgumentException("Invalid account"));
 
-    var clientUuid = UUID.fromString(clientId);
-
-    var roles = accountRepository.findRoleNames(accountUuid, clientUuid);
+    var roles = accountRepository.findRoleNames(accountUuid, clientId);
 
     return tokenMinter.mint(account, roles, client);
   }

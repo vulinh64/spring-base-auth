@@ -20,3 +20,9 @@ databaseChangeLog:
   - include:
       file: 0007-init-admin-account.sql
       relativeToChangelogFile: true
+  - include:
+      file: 0008-cascade-account-credential.sql
+      relativeToChangelogFile: true
+  - include:
+      file: 0009-index-client-name.sql
+      relativeToChangelogFile: true

@@ -35,7 +35,12 @@ public class OtpCredentialStrategy implements CredentialStrategy {
   }
 
   @Override
-  public void verify(LoginRequest request, AccountCredential credential) {
+  public AccountCredential verify(LoginRequest request) {
+    var credential =
+        credentialRepository
+            .findForLogin(request.username(), CredentialType.OTP)
+            .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+
     if (credential.getExpiresAt() != null && Instant.now().isAfter(credential.getExpiresAt())) {
       throw new IllegalArgumentException("OTP expired");
     }
@@ -47,6 +52,6 @@ public class OtpCredentialStrategy implements CredentialStrategy {
       throw new IllegalArgumentException("Invalid credentials");
     }
 
-    credentialRepository.save(credential.setEnabled(false).setExpiresAt(null));
+    return credentialRepository.save(credential.setEnabled(false).setExpiresAt(null));
   }
 }

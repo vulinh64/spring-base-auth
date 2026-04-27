@@ -29,12 +29,22 @@ public class AuthController implements AuthAPI {
   }
 
   private TokenResult deliverTokens(TokenResult result, HttpServletResponse response) {
-    return switch (applicationProperties.security().tokenDelivery()) {
+    var security = applicationProperties.security();
+    return switch (security.tokenDelivery()) {
       case COOKIE -> {
-        response.addCookie(createCookie("access_token", result.accessToken(), result.expiresIn()));
+        response.addCookie(
+            createCookie(
+                security.accessTokenCookieName(),
+                result.accessToken(),
+                result.expiresIn(),
+                security.cookieSecure()));
 
         response.addCookie(
-            createCookie("refresh_token", result.refreshToken(), result.refreshTokenExpiresIn()));
+            createCookie(
+                security.refreshTokenCookieName(),
+                result.refreshToken(),
+                result.refreshTokenExpiresIn(),
+                security.cookieSecure()));
 
         yield null;
       }
@@ -48,11 +58,11 @@ public class AuthController implements AuthAPI {
     };
   }
 
-  private static Cookie createCookie(String name, String value, long maxAge) {
+  private static Cookie createCookie(String name, String value, long maxAge, boolean secure) {
     var cookie = new Cookie(name, value);
 
     cookie.setMaxAge(Math.toIntExact(maxAge));
-    cookie.setSecure(true);
+    cookie.setSecure(secure);
     cookie.setHttpOnly(true);
     cookie.setPath("/");
 

@@ -1,13 +1,17 @@
 application-properties:
   security:
-    issuer-server: ${ISSUER_SERVER:http://localhost:8080}
+    # ISSUER_SERVER must not end with '/'; server.servlet.context-path (if set) must start with '/'
+    issuer-server: ${ISSUER_SERVER:http://localhost:8080}${server.servlet.context-path:}
     token-delivery: ${TOKEN_DELIVERY:COOKIE}
-    signing-key: ${SIGNING_KEY:ed25519} # Lowercase
     no-auth-urls:
-      - "/auth/**"
+      - "/login"
+      - "/refresh"
+      - "/health"
       - "/swagger-ui/**"
       - "/v3/api-docs/**"
-      - "/health"
+    access-token-cookie-name: ${ACCESS_TOKEN_COOKIE_NAME:access_token}
+    refresh-token-cookie-name: ${REFRESH_TOKEN_COOKIE_NAME:refresh_token}
+    cookie-secure: ${COOKIE_SECURE:true}
   bootstrap:
     peer-database: ${BOOTSTRAP_PEER_DATABASE:true}
 spring:
@@ -16,7 +20,7 @@ spring:
     username: ${DATABASE_USERNAME:postgres}
     password: ${DATABASE_PASSWORD:123456}
   liquibase:
-    enabled: false
+    enabled: ${LIQUIBASE_ENABLED:true}
   jpa.open-in-view: false
   threads.virtual.enabled: true
 decorator.datasource.p6spy:
@@ -25,3 +29,4 @@ decorator.datasource.p6spy:
 management.endpoints.web:
   base-path: '/'
   exposure.include: health
+server.servlet.context-path: '/auth'

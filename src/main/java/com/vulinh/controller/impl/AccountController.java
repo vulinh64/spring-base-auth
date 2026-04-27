@@ -1,9 +1,10 @@
 package com.vulinh.controller.impl;
 
+import module java.base;
+
 import com.vulinh.controller.api.AccountAPI;
-import com.vulinh.data.dto.AccountBasicResponse;
+import com.vulinh.data.dto.response.AccountBasicResponse;
 import com.vulinh.service.user.AccountService;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,6 +16,6 @@ public class AccountController implements AccountAPI {
 
   @Override
   public AccountBasicResponse getAccountInfo(UUID id) {
-    return accountService.getUserInfo(id);
+    return accountService.getAccountInfo(id);
   }
 }

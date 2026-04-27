@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JoseHeaderNames;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -36,7 +37,7 @@ public class TokenMinter {
     var accessTokenTtl = tokenSettings.getAccessTokenTimeToLive();
     var refreshTokenTtl = tokenSettings.getRefreshTokenTimeToLive();
 
-    var clientId = UUID.fromString(client.getClientId());
+    var clientId = client.getClientId();
 
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
       var accessFuture =
@@ -58,18 +59,12 @@ public class TokenMinter {
 
   private String encode(JwtClaimsSet claims) {
     return jwtEncoder
-        .encode(
-            JwtEncoderParameters.from(
-                jwsHeader(applicationProperties.security().signingKey()), claims))
+        .encode(JwtEncoderParameters.from(JwsHeader.with(SignatureAlgorithm.RS256).build(), claims))
         .getTokenValue();
   }
 
-  private static JwsHeader jwsHeader(String signingKey) {
-    return JwsHeader.with(() -> signingKey).build();
-  }
-
   private static JwtClaimsSet accessClaims(
-      Account account, UUID clientId, List<String> roles, Duration ttl, String issuer) {
+      Account account, String clientId, List<String> roles, Duration ttl, String issuer) {
     return commonClaimsBuilder(account, clientId, ttl, issuer)
         .claim(JoseHeaderNames.TYP, TokenType.BEARER.getTypeName())
         .claim("resource_access", Map.ofEntries(Map.entry(clientId, new RoleResponse(roles))))
@@ -77,14 +72,14 @@ public class TokenMinter {
   }
 
   private static JwtClaimsSet refreshClaims(
-      Account accountId, UUID clientId, Duration ttl, String issuer) {
+      Account accountId, String clientId, Duration ttl, String issuer) {
     return commonClaimsBuilder(accountId, clientId, ttl, issuer)
         .claim(JoseHeaderNames.TYP, TokenType.REFRESH.getTypeName())
         .build();
   }
 
   private static Builder commonClaimsBuilder(
-      Account account, UUID clientId, Duration ttl, String issuer) {
+      Account account, String clientId, Duration ttl, String issuer) {
     var now = Instant.now();
 
     return JwtClaimsSet.builder()

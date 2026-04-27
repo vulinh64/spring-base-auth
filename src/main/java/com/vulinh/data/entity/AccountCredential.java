@@ -24,6 +24,11 @@ public class AccountCredential extends AbstractAuditableEntity<UUID> {
   @Column(name = "account_id")
   UUID accountId;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "account_id", insertable = false, updatable = false)
+  @ToString.Exclude
+  Account account;
+
   @Enumerated(EnumType.STRING)
   CredentialType credentialType;
 

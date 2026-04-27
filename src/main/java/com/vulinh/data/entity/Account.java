@@ -5,6 +5,8 @@ import module java.base;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UuidGenerator;
 
 // To avoid "user" identifier
@@ -22,19 +24,19 @@ public class Account extends AbstractAuditableEntity<UUID> {
 
   @Id @UuidGenerator UUID id;
 
-  String username;
+  private String username;
 
-  String email;
+  private String email;
 
-  String firstName;
+  private String firstName;
 
-  String lastName;
+  private String lastName;
 
-  @Builder.Default
-  boolean isEnabled = true;
+  @Builder.Default private Boolean isEnabled = true;
 
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "account_id")
+  @OnDelete(action = OnDeleteAction.CASCADE)
   @Builder.Default
   private Set<AccountCredential> credentials = new LinkedHashSet<>();
 

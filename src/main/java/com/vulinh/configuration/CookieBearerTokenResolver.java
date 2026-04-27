@@ -8,9 +8,12 @@ import org.springframework.security.oauth2.server.resource.web.DefaultBearerToke
 
 public class CookieBearerTokenResolver implements BearerTokenResolver {
 
-  private static final String COOKIE_NAME = "access_token";
-
+  private final String cookieName;
   private final DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
+
+  public CookieBearerTokenResolver(String cookieName) {
+    this.cookieName = cookieName;
+  }
 
   @Override
   public String resolve(HttpServletRequest request) {
@@ -19,7 +22,7 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
     if (cookies != null) {
       var token =
           Arrays.stream(cookies)
-              .filter(cookie -> COOKIE_NAME.equals(cookie.getName()))
+              .filter(cookie -> cookieName.equals(cookie.getName()))
               .map(Cookie::getValue)
               .findFirst()
               .orElse(null);

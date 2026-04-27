@@ -1,10 +1,10 @@
 package com.vulinh.configuration;
 
+import module java.base;
+
 import com.vulinh.data.entity.Client;
 import com.vulinh.data.entity.QClient;
 import com.vulinh.data.repository.ClientRepository;
-import java.time.Duration;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -36,8 +36,16 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
 
   @Override
   public RegisteredClient findByClientId(String clientId) {
+    var matcher = Q_CLIENT.clientId.eq(clientId).or(Q_CLIENT.clientName.eq(clientId));
+
+    try {
+      matcher = matcher.or(Q_CLIENT.id.eq(UUID.fromString(clientId)));
+    } catch (IllegalArgumentException ignored) {
+      // Not a UUID — skip the id branch
+    }
+
     return clientRepository
-        .findOne(Q_CLIENT.clientId.eq(clientId).and(Q_CLIENT.enabled.isTrue()))
+        .findOne(matcher.and(Q_CLIENT.enabled.isTrue()))
         .map(JpaRegisteredClientRepository::toRegisteredClient)
         .orElse(null);
   }
