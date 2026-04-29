@@ -2,6 +2,8 @@ package com.vulinh.data.entity;
 
 import module java.base;
 
+import com.vulinh.data.ServiceCodeError;
+import com.vulinh.exception.ApplicationValidationException;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
@@ -46,7 +48,11 @@ public class AccountCredential extends AbstractAuditableEntity<UUID> {
       return switch (grantType) {
         case "password" -> PASSWORD;
         case "otp" -> OTP;
-        case null, default -> throw new IllegalArgumentException("Unsupported grant type");
+        case null, default ->
+            throw new ApplicationValidationException(
+                "Unsupported grant_type: %s".formatted(grantType),
+                ServiceCodeError.UNSUPPORTED_GRANT_TYPE,
+                grantType);
       };
     }
   }

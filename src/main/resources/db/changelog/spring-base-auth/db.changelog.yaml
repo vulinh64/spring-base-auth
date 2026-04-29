@@ -26,3 +26,9 @@ databaseChangeLog:
   - include:
       file: 0009-index-client-name.sql
       relativeToChangelogFile: true
+  - include:
+      file: 0010-init-spring-base-client.sql
+      relativeToChangelogFile: true
+  - include:
+      file: 0011-init-spring-base-user.sql
+      relativeToChangelogFile: true

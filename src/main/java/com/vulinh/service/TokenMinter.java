@@ -1,60 +1,62 @@
 package com.vulinh.service;
 
 import com.vulinh.configuration.ApplicationProperties;
-import com.vulinh.data.dto.RoleResponse;
+import com.vulinh.data.dto.AccessTokenResult;
 import com.vulinh.data.dto.TokenResult;
 import com.vulinh.data.dto.TokenType;
 import com.vulinh.data.entity.Account;
+import com.vulinh.data.entity.Client;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
-import org.springframework.security.oauth2.jwt.JoseHeaderNames;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet.Builder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class TokenMinter {
 
+  public static final String SESSION_AUDIENCE = "session";
+
   private final JwtEncoder jwtEncoder;
   private final ApplicationProperties applicationProperties;
 
-  public TokenResult mint(Account account, List<String> roles, RegisteredClient client) {
-    var issuer = applicationProperties.security().issuerServer();
-
-    var tokenSettings = client.getTokenSettings();
-
-    var accessTokenTtl = tokenSettings.getAccessTokenTimeToLive();
-    var refreshTokenTtl = tokenSettings.getRefreshTokenTimeToLive();
-
-    var clientId = client.getClientId();
+  /** Used by /login and /refresh: mints session_token + refresh_token in parallel. */
+  public TokenResult mintSessionPair(Account account, Client originatingClient) {
+    var sessionTtl = Duration.ofSeconds(originatingClient.getAccessTokenValiditySeconds());
+    var refreshTtl = Duration.ofSeconds(originatingClient.getRefreshTokenValiditySeconds());
+    var clientId = originatingClient.getClientId();
 
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-      var accessFuture =
-          executor.submit(
-              () -> encode(accessClaims(account, clientId, roles, accessTokenTtl, issuer)));
-
+      var sessionFuture =
+          executor.submit(() -> encode(sessionClaims(account, clientId, sessionTtl)));
       var refreshFuture =
-          executor.submit(() -> encode(refreshClaims(account, clientId, refreshTokenTtl, issuer)));
+          executor.submit(() -> encode(refreshClaims(account, clientId, refreshTtl)));
 
       return new TokenResult(
-          accessFuture.get(), accessTokenTtl.getSeconds(),
-          refreshFuture.get(), refreshTokenTtl.getSeconds());
+          sessionFuture.get(), sessionTtl.getSeconds(),
+          refreshFuture.get(), refreshTtl.getSeconds());
     } catch (Exception e) {
-      // Something is very wrong here
       Thread.currentThread().interrupt();
-      throw new IllegalStateException("Failed to generate tokens", e);
+      throw new IllegalStateException("Failed to mint session token pair", e);
     }
+  }
+
+  /** Used by /exchange: mints an audience-scoped access_token for one target client. */
+  public AccessTokenResult mintAccess(
+      Account account, Client originatingClient, Client targetClient, List<String> roles) {
+    var ttl = Duration.ofSeconds(targetClient.getAccessTokenValiditySeconds());
+    var token = encode(accessClaims(account, originatingClient, targetClient, roles, ttl));
+    return new AccessTokenResult(token, ttl.getSeconds(), targetClient.getClientId());
   }
 
   private String encode(JwtClaimsSet claims) {
@@ -63,32 +65,42 @@ public class TokenMinter {
         .getTokenValue();
   }
 
-  private static JwtClaimsSet accessClaims(
-      Account account, String clientId, List<String> roles, Duration ttl, String issuer) {
-    return commonClaimsBuilder(account, clientId, ttl, issuer)
-        .claim(JoseHeaderNames.TYP, TokenType.BEARER.getTypeName())
-        .claim("resource_access", Map.ofEntries(Map.entry(clientId, new RoleResponse(roles))))
+  private JwtClaimsSet sessionClaims(Account account, String clientId, Duration ttl) {
+    return commonBuilder(account, clientId, ttl, SESSION_AUDIENCE)
+        .claim("typ", TokenType.SESSION.getTypeName())
         .build();
   }
 
-  private static JwtClaimsSet refreshClaims(
-      Account accountId, String clientId, Duration ttl, String issuer) {
-    return commonClaimsBuilder(accountId, clientId, ttl, issuer)
-        .claim(JoseHeaderNames.TYP, TokenType.REFRESH.getTypeName())
+  private JwtClaimsSet refreshClaims(Account account, String clientId, Duration ttl) {
+    return commonBuilder(account, clientId, ttl, SESSION_AUDIENCE)
+        .claim("typ", TokenType.REFRESH.getTypeName())
         .build();
   }
 
-  private static Builder commonClaimsBuilder(
-      Account account, String clientId, Duration ttl, String issuer) {
+  private JwtClaimsSet accessClaims(
+      Account account,
+      Client originatingClient,
+      Client targetClient,
+      List<String> roles,
+      Duration ttl) {
+    // Username is included only on access tokens, for log-line / audit readability.
+    // Session and refresh tokens stay minimal.
+    return commonBuilder(account, originatingClient.getClientId(), ttl, targetClient.getClientId())
+        .claim("typ", TokenType.ACCESS.getTypeName())
+        .claim("username", account.getUsername())
+        .claim("roles", roles)
+        .build();
+  }
+
+  private Builder commonBuilder(Account account, String azp, Duration ttl, String audience) {
     var now = Instant.now();
-
     return JwtClaimsSet.builder()
         .id(UUID.randomUUID().toString())
-        .issuer(issuer)
+        .issuer(applicationProperties.security().issuerServer())
         .subject(account.getId().toString())
-        .audience(List.of(issuer))
+        .audience(List.of(audience))
         .issuedAt(now)
         .expiresAt(now.plus(ttl))
-        .claim("azp", clientId);
+        .claim(IdTokenClaimNames.AZP, azp);
   }
 }

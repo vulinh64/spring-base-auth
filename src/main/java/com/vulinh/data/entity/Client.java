@@ -33,6 +33,8 @@ public class Client extends AbstractAuditableEntity<UUID> {
 
   int refreshTokenValiditySeconds;
 
+  String serviceApiKeyHash;
+
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "client_id")
   @Builder.Default

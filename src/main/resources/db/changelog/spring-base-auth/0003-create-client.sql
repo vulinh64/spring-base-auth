@@ -8,8 +8,11 @@ CREATE TABLE client (
     enabled BOOLEAN NOT NULL,
     access_token_validity_seconds INT NOT NULL,
     refresh_token_validity_seconds INT NOT NULL,
+    service_api_key_hash CHAR(64) NULL,
     created_by VARCHAR(255),
     updated_by VARCHAR(255),
     created_date_time TIMESTAMP WITH TIME ZONE,
     updated_date_time TIMESTAMP WITH TIME ZONE
 );
+
+CREATE INDEX idx_client_service_api_key_hash ON client (service_api_key_hash);

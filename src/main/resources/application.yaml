@@ -1,20 +1,34 @@
 application-properties:
   security:
-    # ISSUER_SERVER must not end with '/'; server.servlet.context-path (if set) must start with '/'
-    issuer-server: ${ISSUER_SERVER:http://localhost:8080}${server.servlet.context-path:}
+    issuer-server: ${ISSUER_SERVER:http://localhost:8080}
     token-delivery: ${TOKEN_DELIVERY:COOKIE}
+    jwks-path: ${JWKS_PATH:/.well-known/jwks.json}
+    discovery-path: ${DISCOVERY_PATH:/.well-known/openid-configuration}
     no-auth-urls:
       - "/login"
       - "/refresh"
+      - "/exchange"
       - "/health"
       - "/swagger-ui/**"
+      - "/swagger-ui.html"
       - "/v3/api-docs/**"
-    access-token-cookie-name: ${ACCESS_TOKEN_COOKIE_NAME:access_token}
+      - "/webjars/**"
+    session-token-cookie-name: ${SESSION_TOKEN_COOKIE_NAME:session_token}
     refresh-token-cookie-name: ${REFRESH_TOKEN_COOKIE_NAME:refresh_token}
     cookie-secure: ${COOKIE_SECURE:true}
+    skip-service-key-verification: ${SKIP_SERVICE_KEY_VERIFICATION:false}
+  message-topic:
+    key-invalidated:
+      topic-name: ${KEY_INVALIDATED_TOPIC:key-invalidated}
+      type: KEY_INVALIDATED
   bootstrap:
     peer-database: ${BOOTSTRAP_PEER_DATABASE:true}
 spring:
+  cloud.stream:
+    bindings:
+      keyInvalidated-out-0:
+        destination: ${application-properties.message-topic.key-invalidated.topic-name}
+    default-binder: rabbit
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/spring-base-auth}
     username: ${DATABASE_USERNAME:postgres}
@@ -22,6 +36,11 @@ spring:
   liquibase:
     enabled: ${LIQUIBASE_ENABLED:true}
   jpa.open-in-view: false
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:rabbitmq}
+    password: ${RABBITMQ_PASSWORD:123456}
   threads.virtual.enabled: true
 decorator.datasource.p6spy:
   logging: CUSTOM
@@ -29,4 +48,3 @@ decorator.datasource.p6spy:
 management.endpoints.web:
   base-path: '/'
   exposure.include: health
-server.servlet.context-path: '/auth'

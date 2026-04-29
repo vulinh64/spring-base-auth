@@ -7,7 +7,8 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum TokenType {
-  BEARER("bearer"),
+  SESSION("session"),
+  ACCESS("access"),
   REFRESH("refresh");
 
   @JsonValue private final String typeName;
