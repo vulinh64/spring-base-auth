@@ -26,7 +26,7 @@ public class PeerDatabaseBootstrap {
   @PostConstruct
   void createPeerDatabases() throws SQLException {
     if (!applicationProperties.bootstrap().peerDatabase()) {
-      log.info("Peer database bootstrapping disabled, skipping");
+      log.info("Peer database bootstrapping disabled, skipping...");
       return;
     }
 
@@ -40,7 +40,7 @@ public class PeerDatabaseBootstrap {
 
       for (var database : PEER_DATABASES) {
         if (exists(connection, database)) {
-          log.debug("Peer database '{}' already exists", database);
+          log.info("Peer database '{}' already exists, skipping...", database);
         } else {
           create(connection, database);
           log.info("Created peer database '{}'", database);
