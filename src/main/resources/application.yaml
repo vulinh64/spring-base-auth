@@ -22,7 +22,7 @@ application-properties:
       topic-name: ${KEY_INVALIDATED_TOPIC:key-invalidated}
       type: KEY_INVALIDATED
   bootstrap:
-    peer-database: ${BOOTSTRAP_PEER_DATABASE:true}
+    peer-database: ${BOOTSTRAP_PEER_DATABABSE:true}
 spring:
   cloud.stream:
     bindings:
@@ -30,9 +30,9 @@ spring:
         destination: ${application-properties.message-topic.key-invalidated.topic-name}
     default-binder: rabbit
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/spring-base-auth}
-    username: ${DATABASE_USERNAME:postgres}
-    password: ${DATABASE_PASSWORD:123456}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/spring-base-auth
+    username: ${POSTGRES_USERNAME:postgres}
+    password: ${POSTGRES_PASSWORD:123456}
   liquibase:
     enabled: ${LIQUIBASE_ENABLED:true}
   jpa.open-in-view: false

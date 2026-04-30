@@ -10,7 +10,7 @@ FROM amazoncorretto:25-alpine-full AS build
 WORKDIR /usr/src/project
 
 ENV JAVA_VERSION=25
-ENV APP_NAME=app.jar
+ENV APP_NAME=spring-base-auth.jar
 ENV DEPS_FILE=deps.info
 
 # Change this when there is an update
@@ -63,9 +63,6 @@ RUN jdeps  \
 # jdk.compiler: runs HealthCheck.java compact source file via the source launcher
 RUN echo "$(cat ${DEPS_FILE}),jdk.crypto.ec,jdk.compiler" > ${DEPS_FILE}
 
-# Debug: print the full module list so it appears in the build log
-RUN echo "=== ${DEPS_FILE} ===" && cat ${DEPS_FILE} && echo "==================="
-
 # Create a custom JRE with only the required modules
 RUN jlink \
     --add-modules $(cat ${DEPS_FILE}) \
@@ -83,7 +80,7 @@ ENV PATH=$JAVA_HOME/bin:$JAVA_HOME/lib:$PATH
 ENV USER=spring-user
 ENV GROUP=spring-group
 ENV WORKDIR=app
-ENV APP_NAME=app.jar
+ENV APP_NAME=spring-base-auth.jar
 ENV DEPS_FILE=deps.info
 
 # Copy the custom JRE from the build stage
