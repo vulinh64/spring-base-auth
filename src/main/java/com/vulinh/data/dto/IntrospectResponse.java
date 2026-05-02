@@ -1,11 +1,12 @@
 package com.vulinh.data.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.vulinh.utils.CollectionHelper;
 import java.util.Map;
+import lombok.Builder;
+import lombok.With;
 
-@JsonInclude(Include.NON_NULL)
+@Builder
+@With
 public record IntrospectResponse(boolean active, Map<String, Object> claims, String error) {
 
   public static IntrospectResponse valid(Map<String, Object> claims) {
@@ -13,7 +14,7 @@ public record IntrospectResponse(boolean active, Map<String, Object> claims, Str
   }
 
   public static IntrospectResponse invalid(String reason) {
-    return new IntrospectResponse(false, null, reason);
+    return IntrospectResponse.builder().error(reason).build();
   }
 
   public IntrospectResponse {

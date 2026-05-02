@@ -1,28 +1,28 @@
 application-properties:
+  peer-database-bootstrap:
+    enabled: ${BOOTSTRAP_PEER_DATABABSE:true}
+    peer-databases:
+      - spring-base
+      - spring-base-event
+  message-topic:
+    key-invalidated:
+      topic-name: ${KEY_INVALIDATED_TOPIC:key-invalidated}
+      type: KEY_INVALIDATED
   security:
-    issuer-server: ${ISSUER_SERVER:http://localhost:8080}
-    token-delivery: ${TOKEN_DELIVERY:COOKIE}
-    jwks-path: ${JWKS_PATH:/.well-known/jwks.json}
+    cookie-secure: ${COOKIE_SECURE:true}
     discovery-path: ${DISCOVERY_PATH:/.well-known/openid-configuration}
+    issuer-server: ${ISSUER_SERVER:http://localhost:8080}
+    jwks-path: ${JWKS_PATH:/.well-known/jwks.json}
     no-auth-urls:
-      - "/login"
-      - "/refresh"
-      - "/exchange"
+      - "/auth/**"
       - "/health"
       - "/swagger-ui/**"
       - "/swagger-ui.html"
       - "/v3/api-docs/**"
       - "/webjars/**"
-    session-token-cookie-name: ${SESSION_TOKEN_COOKIE_NAME:session_token}
     refresh-token-cookie-name: ${REFRESH_TOKEN_COOKIE_NAME:refresh_token}
-    cookie-secure: ${COOKIE_SECURE:true}
-    skip-service-key-verification: ${SKIP_SERVICE_KEY_VERIFICATION:false}
-  message-topic:
-    key-invalidated:
-      topic-name: ${KEY_INVALIDATED_TOPIC:key-invalidated}
-      type: KEY_INVALIDATED
-  bootstrap:
-    peer-database: ${BOOTSTRAP_PEER_DATABABSE:true}
+    session-token-cookie-name: ${SESSION_TOKEN_COOKIE_NAME:session_token}
+    token-delivery: ${TOKEN_DELIVERY:COOKIE}
 spring:
   cloud.stream:
     bindings:

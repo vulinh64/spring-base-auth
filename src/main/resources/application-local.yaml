@@ -1,8 +1,5 @@
 application-properties:
   security:
-    # In local profile, BE-to-BE API key check is bypassed for quick debugging.
-    # The X-Service-Key header is not required on /internal/** endpoints.
-    skip-service-key-verification: true
     # Cookies served over plain HTTP locally.
     cookie-secure: false
 logging.level:

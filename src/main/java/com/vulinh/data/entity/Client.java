@@ -3,7 +3,6 @@ package com.vulinh.data.entity;
 import module java.base;
 
 import jakarta.persistence.*;
-import java.util.ArrayList;
 import lombok.*;
 import lombok.experimental.Accessors;
 import org.hibernate.annotations.UuidGenerator;
@@ -22,7 +21,6 @@ public class Client extends AbstractAuditableEntity<UUID> {
 
   @Id @UuidGenerator UUID id;
 
-  @Column(unique = true, nullable = false)
   String clientId;
 
   String clientName;

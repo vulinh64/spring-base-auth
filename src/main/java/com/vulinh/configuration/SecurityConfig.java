@@ -13,22 +13,13 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
-import com.vulinh.data.ServiceCodeError;
 import com.vulinh.data.dto.TokenType;
-import com.vulinh.data.repository.ClientRepository;
 import com.vulinh.exception.ServiceAuthenticationException;
 import com.vulinh.service.TokenMinter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyPairGenerator;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -36,12 +27,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -51,6 +40,8 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
@@ -85,18 +76,18 @@ public class SecurityConfig {
   @Order(1)
   SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
     var security = applicationProperties.security();
-    var pathBuilder = PathPatternRequestMatcher.withDefaults();
-    var matchers =
-        Stream.concat(
-                Arrays.stream(security.noAuthUrls()),
-                Stream.of(security.jwksPath(), security.discoveryPath()))
-            .map(pathBuilder::matcher)
-            .toArray(RequestMatcher[]::new);
 
-    return http.securityMatcher(new OrRequestMatcher(matchers))
-        .csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(a -> a.anyRequest().permitAll())
+    return baseStateless(
+            http,
+            new OrRequestMatcher(
+                Stream.concat(
+                        Arrays.stream(security.noAuthUrls()),
+                        Stream.of(security.jwksPath(), security.discoveryPath()))
+                    .map(PathPatternRequestMatcher.withDefaults()::matcher)
+                    .toArray(RequestMatcher[]::new)))
+        .authorizeHttpRequests(
+            authorizeHttpRequestsCustomizer ->
+                authorizeHttpRequestsCustomizer.anyRequest().permitAll())
         .build();
   }
 
@@ -106,19 +97,29 @@ public class SecurityConfig {
    */
   @Bean
   @Order(2)
-  SecurityFilterChain accountsFilterChain(HttpSecurity http, JwtDecoder sessionJwtDecoder)
+  SecurityFilterChain accountsFilterChain(HttpSecurity http, JWKSource<SecurityContext> jwkSource)
       throws Exception {
-    var pathBuilder = PathPatternRequestMatcher.withDefaults();
-    return http.securityMatcher(pathBuilder.matcher("/accounts/**"))
-        .csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+    var security = applicationProperties.security();
+
+    return baseStateless(http, PathPatternRequestMatcher.withDefaults().matcher("/accounts/**"))
+        .authorizeHttpRequests(
+            authorizeHttpRequestsCustomizer ->
+                authorizeHttpRequestsCustomizer.anyRequest().authenticated())
         .oauth2ResourceServer(
-            o ->
-                o.bearerTokenResolver(
-                        new CookieBearerTokenResolver(
-                            applicationProperties.security().sessionTokenCookieName()))
-                    .jwt(j -> j.decoder(sessionJwtDecoder)))
+            oauth2ResourceServerCustomizer ->
+                oauth2ResourceServerCustomizer
+                    .bearerTokenResolver(
+                        new CookieBearerTokenResolver(security.sessionTokenCookieName()))
+                    .jwt(
+                        jwtConfigurer ->
+                            jwtConfigurer
+                                .decoder(
+                                    hardenedJwtDecoder(
+                                        jwkSource,
+                                        security.issuerServer(),
+                                        TokenMinter.SESSION_AUDIENCE,
+                                        TokenType.SESSION))
+                                .jwtAuthenticationConverter(plainAuthorityConverter())))
         .build();
   }
 
@@ -130,14 +131,23 @@ public class SecurityConfig {
    */
   @Bean
   @Order(3)
-  SecurityFilterChain adminFilterChain(HttpSecurity http, JwtDecoder asAdminJwtDecoder)
+  SecurityFilterChain adminFilterChain(HttpSecurity http, JWKSource<SecurityContext> jwkSource)
       throws Exception {
-    var pathBuilder = PathPatternRequestMatcher.withDefaults();
-    return http.securityMatcher(pathBuilder.matcher("/admin/**"))
-        .csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+    var asAdminJwtDecoder =
+        hardenedJwtDecoder(
+            jwkSource,
+            applicationProperties.security().issuerServer(),
+            AS_ADMIN_AUDIENCE,
+            TokenType.ACCESS);
+
+    return baseStateless(http, PathPatternRequestMatcher.withDefaults().matcher("/admin/**"))
         .authorizeHttpRequests(a -> a.anyRequest().authenticated())
-        .oauth2ResourceServer(o -> o.jwt(j -> j.decoder(asAdminJwtDecoder)))
+        .oauth2ResourceServer(
+            o ->
+                o.jwt(
+                    j ->
+                        j.decoder(asAdminJwtDecoder)
+                            .jwtAuthenticationConverter(plainAuthorityConverter())))
         .build();
   }
 
@@ -150,17 +160,16 @@ public class SecurityConfig {
   @Order(4)
   SecurityFilterChain internalFilterChain(
       HttpSecurity http,
-      ClientRepository clientRepository,
-      @Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver)
+      InterServiceAuthenticator interServiceAuthenticator,
+      HandlerExceptionResolver handlerExceptionResolver)
       throws Exception {
     var serviceApiKeyFilter =
-        new ServiceApiKeyFilter(applicationProperties, clientRepository, handlerExceptionResolver);
+        new ServiceApiKeyFilter(interServiceAuthenticator, handlerExceptionResolver);
 
-    var pathBuilder = PathPatternRequestMatcher.withDefaults();
-    return http.securityMatcher(pathBuilder.matcher("/internal/**"))
-        .csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(a -> a.anyRequest().hasRole("SERVICE"))
+    return baseStateless(http, PathPatternRequestMatcher.withDefaults().matcher("/internal/**"))
+        .authorizeHttpRequests(
+            authorizeHttpRequestsCustomizer ->
+                authorizeHttpRequestsCustomizer.anyRequest().hasAnyAuthority("SERVICE"))
         .addFilterBefore(serviceApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
         .build();
   }
@@ -169,9 +178,7 @@ public class SecurityConfig {
   @Bean
   @Order(5)
   SecurityFilterChain defaultFilterChain(HttpSecurity http) throws Exception {
-    return http.securityMatcher(AnyRequestMatcher.INSTANCE)
-        .csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+    return baseStateless(http, AnyRequestMatcher.INSTANCE)
         .authorizeHttpRequests(a -> a.anyRequest().denyAll())
         .build();
   }
@@ -202,24 +209,6 @@ public class SecurityConfig {
     return RouterFunctions.route(
         RequestPredicates.GET(security.discoveryPath()),
         _ -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(discovery));
-  }
-
-  /**
-   * Static so it can be unit-tested without Spring. The shape of this Map is part of the public
-   * contract with BE services using {@code JwtDecoders.fromIssuerLocation(...)}; if you change it,
-   * update {@code SPRING_BASE_INTEGRATION.md} §3 and let consuming teams know.
-   */
-  static java.util.Map<String, Object> buildDiscoveryDoc(ApplicationProperties.Security security) {
-    var issuer = security.issuerServer();
-    return java.util.Map.of(
-        "issuer",
-        issuer,
-        "jwks_uri",
-        issuer + security.jwksPath(),
-        "id_token_signing_alg_values_supported",
-        java.util.List.of("RS256"),
-        "subject_types_supported",
-        java.util.List.of("public"));
   }
 
   @Bean
@@ -260,34 +249,60 @@ public class SecurityConfig {
   }
 
   /**
-   * Hardened decoder for the AS admin chain — adds aud == "admin-cli" and typ == "access" checks on
-   * top of the default validators. Mirrors what BE services will configure for themselves.
+   * Builds a hardened decoder enforcing signature, issuer, timestamps, plus the given aud and typ.
+   * Used by the /accounts and /admin chains; BE services will configure their own equivalents.
    */
-  @Bean
-  JwtDecoder asAdminJwtDecoder(JWKSource<SecurityContext> jwkSource) {
+  /**
+   * Project convention — granted authorities are stored literally (no {@code SCOPE_} or {@code
+   * ROLE_} prefix). Authorize rules use {@code hasAuthority(...)}, never {@code hasRole(...)}.
+   */
+  private static JwtAuthenticationConverter plainAuthorityConverter() {
+    var authorities = new JwtGrantedAuthoritiesConverter();
+    authorities.setAuthorityPrefix("");
+
+    var converter = new JwtAuthenticationConverter();
+    converter.setJwtGrantedAuthoritiesConverter(authorities);
+    return converter;
+  }
+
+  private static JwtDecoder hardenedJwtDecoder(
+      JWKSource<SecurityContext> jwkSource, String issuer, String audience, TokenType typ) {
     var processor = new DefaultJWTProcessor<>();
+
     processor.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, jwkSource));
+
     var decoder = new NimbusJwtDecoder(processor);
+
     decoder.setJwtValidator(
         new DelegatingOAuth2TokenValidator<>(
-            JwtValidators.createDefaultWithIssuer(applicationProperties.security().issuerServer()),
-            new JwtAudValidator(AS_ADMIN_AUDIENCE),
-            new JwtTypValidator(TokenType.ACCESS)));
+            JwtValidators.createDefaultWithIssuer(issuer),
+            new JwtAudValidator(audience),
+            new JwtTypValidator(typ)));
+
     return decoder;
   }
 
-  /** Decoder for the FE-facing /accounts chain — requires aud == "session" and typ == "session". */
-  @Bean
-  JwtDecoder sessionJwtDecoder(JWKSource<SecurityContext> jwkSource) {
-    var processor = new DefaultJWTProcessor<>();
-    processor.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, jwkSource));
-    var decoder = new NimbusJwtDecoder(processor);
-    decoder.setJwtValidator(
-        new DelegatingOAuth2TokenValidator<>(
-            JwtValidators.createDefaultWithIssuer(applicationProperties.security().issuerServer()),
-            new JwtAudValidator(TokenMinter.SESSION_AUDIENCE),
-            new JwtTypValidator(TokenType.SESSION)));
-    return decoder;
+  /**
+   * Static so it can be unit-tested without Spring. The shape of this Map is part of the public
+   * contract with BE services using {@code JwtDecoders.fromIssuerLocation(...)}; if you change it,
+   * update {@code SPRING_BASE_INTEGRATION.md} §3 and let consuming teams know.
+   */
+  static Map<String, Object> buildDiscoveryDoc(ApplicationProperties.Security security) {
+    var issuer = security.issuerServer();
+    return Map.ofEntries(
+        Map.entry("issuer", issuer),
+        Map.entry("jwks_uri", issuer + security.jwksPath()),
+        Map.entry("id_token_signing_alg_values_supported", List.of("RS256")),
+        Map.entry("subject_types_supported", List.of("public")));
+  }
+
+  private static HttpSecurity baseStateless(HttpSecurity http, RequestMatcher matcher)
+      throws Exception {
+    return http.securityMatcher(matcher)
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(
+            sessionManagementConfigurer ->
+                sessionManagementConfigurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
   }
 
   /**
@@ -300,19 +315,13 @@ public class SecurityConfig {
    */
   static final class ServiceApiKeyFilter extends OncePerRequestFilter {
 
-    private static final String HEADER_NAME = "X-Service-Key";
-    private static final String LOCAL_BYPASS_PRINCIPAL = "local-debug";
-
-    private final ApplicationProperties applicationProperties;
-    private final ClientRepository clientRepository;
+    private final InterServiceAuthenticator interServiceAuthenticator;
     private final HandlerExceptionResolver handlerExceptionResolver;
 
     ServiceApiKeyFilter(
-        ApplicationProperties applicationProperties,
-        ClientRepository clientRepository,
+        InterServiceAuthenticator interServiceAuthenticator,
         HandlerExceptionResolver handlerExceptionResolver) {
-      this.applicationProperties = applicationProperties;
-      this.clientRepository = clientRepository;
+      this.interServiceAuthenticator = interServiceAuthenticator;
       this.handlerExceptionResolver = handlerExceptionResolver;
     }
 
@@ -323,49 +332,11 @@ public class SecurityConfig {
         @NonNull FilterChain chain)
         throws ServletException, IOException {
       try {
-        authenticate(request);
+        SecurityContextHolder.getContext()
+            .setAuthentication(interServiceAuthenticator.authenticate(request));
         chain.doFilter(request, response);
       } catch (ServiceAuthenticationException ex) {
         handlerExceptionResolver.resolveException(request, response, null, ex);
-      }
-    }
-
-    private void authenticate(HttpServletRequest request) {
-      if (applicationProperties.security().skipServiceKeyVerification()) {
-        // Local profile: skip the API key check entirely for quick BE-to-BE debugging.
-        SecurityContextHolder.getContext()
-            .setAuthentication(serviceAuthentication(LOCAL_BYPASS_PRINCIPAL));
-        return;
-      }
-
-      var presented = request.getHeader(HEADER_NAME);
-      if (presented == null || presented.isBlank()) {
-        throw new ServiceAuthenticationException(
-            "Missing %s header".formatted(HEADER_NAME), ServiceCodeError.MISSING_SERVICE_KEY);
-      }
-
-      var match = clientRepository.findByServiceApiKeyHashAndEnabledIsTrue(sha256Hex(presented));
-      if (match.isEmpty()) {
-        throw new ServiceAuthenticationException(
-            "Invalid %s header".formatted(HEADER_NAME), ServiceCodeError.INVALID_SERVICE_KEY);
-      }
-
-      SecurityContextHolder.getContext()
-          .setAuthentication(serviceAuthentication(match.get().getClientId()));
-    }
-
-    private static UsernamePasswordAuthenticationToken serviceAuthentication(String principal) {
-      return new UsernamePasswordAuthenticationToken(
-          principal, null, List.of(new SimpleGrantedAuthority("ROLE_SERVICE")));
-    }
-
-    private static String sha256Hex(String input) {
-      try {
-        var md = MessageDigest.getInstance("SHA-256");
-        var digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
-        return HexFormat.of().formatHex(digest);
-      } catch (NoSuchAlgorithmException e) {
-        throw new IllegalStateException("SHA-256 unavailable", e);
       }
     }
   }

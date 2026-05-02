@@ -9,7 +9,7 @@ if errorlevel 1 (
 )
 
 :: Create local repository for data classes
-call ./create-data-classes
+call ./create-data-classes.cmd
 
 :: --- PostgreSQL Setup ---
 SET PG_CONTAINER_NAME=postgresql

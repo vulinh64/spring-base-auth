@@ -2,6 +2,7 @@ package com.vulinh.controller.impl;
 
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 
+import com.vulinh.annotation.aspect.ProbeRequest;
 import com.vulinh.configuration.ApplicationProperties;
 import com.vulinh.controller.api.AuthAPI;
 import com.vulinh.data.ServiceCodeError;
@@ -26,6 +27,7 @@ public class AuthController implements AuthAPI {
   private final AuthService authService;
   private final ApplicationProperties applicationProperties;
 
+  @ProbeRequest
   @Override
   public TokenResult login(LoginRequest request, HttpServletResponse response) {
     requireNonBlank(request.grantType(), ServiceCodeError.GRANT_TYPE_REQUIRED);
@@ -109,7 +111,7 @@ public class AuthController implements AuthAPI {
   private static void requireNonBlank(String value, ApplicationError error) {
     if (value == null || value.isBlank()) {
       throw new ApplicationValidationException(
-          error.getErrorCode() + " is missing or blank", error);
+          "%s is missing or blank".formatted(error.getErrorCode()), error);
     }
   }
 }

@@ -1,13 +1,12 @@
 package com.vulinh.data.repository;
 
+import module java.base;
+
 import com.vulinh.data.entity.AccountCredential;
 import com.vulinh.data.entity.AccountCredential.CredentialType;
-import java.util.Optional;
-import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-public interface AccountCredentialRepository extends JpaRepository<AccountCredential, UUID> {
+public interface AccountCredentialRepository extends BaseRepository<AccountCredential, UUID> {
 
   @Query(
       """

@@ -10,13 +10,13 @@ public record JwtAudValidator(String expectedAudience) implements OAuth2TokenVal
   @Override
   public OAuth2TokenValidatorResult validate(Jwt jwt) {
     var audiences = jwt.getAudience();
-    if (audiences != null && audiences.contains(expectedAudience)) {
-      return OAuth2TokenValidatorResult.success();
-    }
-    return OAuth2TokenValidatorResult.failure(
-        new OAuth2Error(
-            "invalid_token",
-            "Required audience '%s' is missing".formatted(expectedAudience),
-            null));
+
+    return audiences != null && audiences.contains(expectedAudience)
+        ? OAuth2TokenValidatorResult.success()
+        : OAuth2TokenValidatorResult.failure(
+            new OAuth2Error(
+                "invalid_token",
+                "Required audience '%s' is missing".formatted(expectedAudience),
+                null));
   }
 }

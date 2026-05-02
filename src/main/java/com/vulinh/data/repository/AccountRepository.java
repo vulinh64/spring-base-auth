@@ -3,10 +3,9 @@ package com.vulinh.data.repository;
 import com.vulinh.data.entity.Account;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-public interface AccountRepository extends JpaRepository<Account, UUID> {
+public interface AccountRepository extends BaseRepository<Account, UUID> {
 
   @Query(
       """
