@@ -13,6 +13,7 @@ import com.vulinh.exception.ApplicationValidationException;
 import com.vulinh.service.credential.CredentialStrategies;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,7 +57,7 @@ public class AuthService {
           "Refresh endpoint expected aud=session", ServiceCodeError.INVALID_AUDIENCE);
     }
 
-    var clientId = jwt.getClaimAsString("azp");
+    var clientId = jwt.getClaimAsString(IdTokenClaimNames.AZP);
     var client =
         clientRepository
             .findByClientIdAndEnabledIsTrue(clientId)
@@ -90,7 +91,8 @@ public class AuthService {
           "Exchange endpoint expected aud=session", ServiceCodeError.INVALID_AUDIENCE);
     }
 
-    var originatingClientId = jwt.getClaimAsString("azp");
+    var originatingClientId = jwt.getClaimAsString(IdTokenClaimNames.AZP);
+
     var originatingClient =
         clientRepository
             .findByClientIdAndEnabledIsTrue(originatingClientId)

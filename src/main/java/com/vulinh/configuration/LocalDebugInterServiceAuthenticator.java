@@ -13,4 +13,9 @@ import org.springframework.stereotype.Component;
 @Profile("local")
 public class LocalDebugInterServiceAuthenticator implements InterServiceAuthenticator {
 
+  @Override
+  public Authentication authenticate(HttpServletRequest request) {
+    return new UsernamePasswordAuthenticationToken(
+        "local-debug", null, List.of(new SimpleGrantedAuthority(BE_TO_BE_ROLE)));
+  }
 }
