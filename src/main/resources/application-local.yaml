@@ -2,6 +2,3 @@ application-properties:
   security:
     # Cookies served over plain HTTP locally.
     cookie-secure: false
-logging.level:
-  org.springframework.security: DEBUG
-  com.vulinh: DEBUG
