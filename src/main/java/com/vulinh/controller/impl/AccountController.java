@@ -1,10 +1,12 @@
 package com.vulinh.controller.impl;
 
+import module java.base;
+
 import com.vulinh.controller.api.AccountAPI;
-import com.vulinh.data.dto.response.AccountBasicResponse;
+import com.vulinh.data.dto.AccountInfo;
 import com.vulinh.service.user.AccountService;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,7 +17,8 @@ public class AccountController implements AccountAPI {
   private final AccountService accountService;
 
   @Override
-  public AccountBasicResponse getOwnAccount(Jwt jwt) {
-    return accountService.getAccountInfo(UUID.fromString(jwt.getSubject()));
+  public AccountInfo getOwnAccount(Jwt jwt) {
+    return accountService.getOwnAccount(
+        UUID.fromString(jwt.getSubject()), jwt.getClaimAsString(IdTokenClaimNames.AZP));
   }
 }

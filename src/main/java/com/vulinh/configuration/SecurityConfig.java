@@ -15,14 +15,13 @@ import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import com.vulinh.data.dto.TokenType;
 import com.vulinh.exception.ServiceAuthenticationException;
-import com.vulinh.service.TokenMinter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NonNull;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -35,6 +34,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
@@ -70,7 +71,7 @@ public class SecurityConfig {
   }
 
   /**
-   * Order 1 — anonymous access for /login, /refresh, /exchange, JWKS, OIDC discovery, health, docs.
+   * Order 1 — anonymous access for /login, /refresh, /logout, JWKS, OIDC discovery, health, docs.
    */
   @Bean
   @Order(1)
@@ -92,8 +93,10 @@ public class SecurityConfig {
   }
 
   /**
-   * Order 2 — FE-facing endpoints under /accounts/**. Gated by session_token (aud == "session", typ
-   * == "session") read from the cookie. Used for /accounts/me and similar.
+   * Order 2 — FE-facing endpoints under /accounts/**. Gated by access_token (typ == "access") read
+   * from the cookie. PoC: aud is not validated here — it currently equals the caller's clientId
+   * (azp), so per-client checks would just couple security to data. Revisit when we settle on a
+   * sensible aud strategy.
    */
   @Bean
   @Order(2)
@@ -109,25 +112,21 @@ public class SecurityConfig {
             oauth2ResourceServerCustomizer ->
                 oauth2ResourceServerCustomizer
                     .bearerTokenResolver(
-                        new CookieBearerTokenResolver(security.sessionTokenCookieName()))
+                        new CookieBearerTokenResolver(security.accessTokenCookieName()))
                     .jwt(
                         jwtConfigurer ->
                             jwtConfigurer
                                 .decoder(
                                     hardenedJwtDecoder(
-                                        jwkSource,
-                                        security.issuerServer(),
-                                        TokenMinter.SESSION_AUDIENCE,
-                                        TokenType.SESSION))
+                                        jwkSource, security.issuerServer(), null, TokenType.ACCESS))
                                 .jwtAuthenticationConverter(plainAuthorityConverter())))
         .build();
   }
 
   /**
    * Order 3 — AS's own admin endpoints. Requires an access_token whose aud == "admin-cli" and typ
-   * == "access". Token is sent via the Authorization header (default bearer resolver), since access
-   * tokens are returned in /exchange's response body, not as cookies. Same chain pattern any BE
-   * service will use to gate its own resource server.
+   * == "access". Token is sent via the Authorization header (default bearer resolver). Same chain
+   * pattern any BE service will use to gate its own resource server.
    */
   @Bean
   @Order(3)
@@ -234,9 +233,9 @@ public class SecurityConfig {
   }
 
   /**
-   * General-purpose decoder used by AuthService for /refresh and /exchange (which inspect the
-   * decoded JWT manually). Only signature + issuer + timestamps are validated here — typ and aud
-   * checks are done by callers.
+   * General-purpose decoder used by AuthService for /refresh (which inspects the decoded JWT
+   * manually). Only signature + issuer + timestamps are validated here — typ and aud checks are
+   * done by callers.
    */
   @Bean
   JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
@@ -248,17 +247,9 @@ public class SecurityConfig {
     return decoder;
   }
 
-  /**
-   * Builds a hardened decoder enforcing signature, issuer, timestamps, plus the given aud and typ.
-   * Used by the /accounts and /admin chains; BE services will configure their own equivalents.
-   */
-  /**
-   * Project convention — granted authorities are stored literally (no {@code SCOPE_} or {@code
-   * ROLE_} prefix). Authorize rules use {@code hasAuthority(...)}, never {@code hasRole(...)}.
-   */
   private static JwtAuthenticationConverter plainAuthorityConverter() {
     var authorities = new JwtGrantedAuthoritiesConverter();
-    authorities.setAuthorityPrefix("");
+    authorities.setAuthorityPrefix(StringUtils.EMPTY);
 
     var converter = new JwtAuthenticationConverter();
     converter.setJwtGrantedAuthoritiesConverter(authorities);
@@ -273,11 +264,14 @@ public class SecurityConfig {
 
     var decoder = new NimbusJwtDecoder(processor);
 
-    decoder.setJwtValidator(
-        new DelegatingOAuth2TokenValidator<>(
-            JwtValidators.createDefaultWithIssuer(issuer),
-            new JwtAudValidator(audience),
-            new JwtTypValidator(typ)));
+    var validators = new ArrayList<OAuth2TokenValidator<Jwt>>();
+    validators.add(JwtValidators.createDefaultWithIssuer(issuer));
+    validators.add(new JwtTypValidator(typ));
+    if (audience != null) {
+      validators.add(new JwtAudValidator(audience));
+    }
+
+    decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(validators));
 
     return decoder;
   }
@@ -313,7 +307,7 @@ public class SecurityConfig {
    * com.vulinh.exception.GlobalExceptionHandler}'s {@code @ExceptionHandler} fires from the filter
    * layer too.
    */
-  static final class ServiceApiKeyFilter extends OncePerRequestFilter {
+  public static final class ServiceApiKeyFilter extends OncePerRequestFilter {
 
     private final InterServiceAuthenticator interServiceAuthenticator;
     private final HandlerExceptionResolver handlerExceptionResolver;

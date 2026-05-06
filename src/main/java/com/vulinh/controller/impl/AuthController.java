@@ -1,12 +1,8 @@
 package com.vulinh.controller.impl;
 
-import static org.springframework.http.HttpHeaders.AUTHORIZATION;
-
 import com.vulinh.configuration.ApplicationProperties;
 import com.vulinh.controller.api.AuthAPI;
 import com.vulinh.data.ServiceCodeError;
-import com.vulinh.data.dto.AccessTokenResult;
-import com.vulinh.data.dto.ExchangeRequest;
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.RefreshRequest;
 import com.vulinh.data.dto.TokenResult;
@@ -14,14 +10,17 @@ import com.vulinh.exception.ApplicationValidationException;
 import com.vulinh.service.AuthService;
 import com.vulinh.utils.validator.ApplicationError;
 import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
 public class AuthController implements AuthAPI {
+
+  static final String X_ACCESS_TOKEN_HEADER = "X-Access-Token";
+  static final String X_REFRESH_TOKEN_HEADER = "X-Refresh-Token";
 
   private final AuthService authService;
   private final ApplicationProperties applicationProperties;
@@ -30,68 +29,65 @@ public class AuthController implements AuthAPI {
   public TokenResult login(LoginRequest request, HttpServletResponse response) {
     requireNonBlank(request.grantType(), ServiceCodeError.GRANT_TYPE_REQUIRED);
     requireNonBlank(request.clientId(), ServiceCodeError.CLIENT_ID_REQUIRED);
-    return deliverSessionPair(authService.login(request), response);
+    return deliverTokenPair(authService.login(request), response);
   }
 
   @Override
   public TokenResult refresh(RefreshRequest request, HttpServletResponse response) {
     requireNonBlank(request.refreshToken(), ServiceCodeError.REFRESH_TOKEN_REQUIRED);
-    return deliverSessionPair(authService.refresh(request), response);
+    return deliverTokenPair(authService.refresh(request), response);
   }
 
   @Override
-  public AccessTokenResult exchange(ExchangeRequest request, HttpServletRequest httpRequest) {
-    requireNonBlank(request.audience(), ServiceCodeError.AUDIENCE_REQUIRED);
-
-    var sessionToken = readSessionToken(httpRequest);
-    if (sessionToken == null) {
-      throw new ApplicationValidationException(
-          "Missing session_token cookie/header on /exchange",
-          ServiceCodeError.MISSING_SESSION_TOKEN);
-    }
-    // Access tokens are always returned in the body — they are short-lived,
-    // audience-scoped, and consumed by the FE choosing which BE to call.
-    return authService.exchange(sessionToken, request.audience());
-  }
-
-  private String readSessionToken(HttpServletRequest request) {
-    var cookieName = applicationProperties.security().sessionTokenCookieName();
-    if (request.getCookies() != null) {
-      for (var cookie : request.getCookies()) {
-        if (cookieName.equals(cookie.getName())) {
-          return cookie.getValue();
-        }
-      }
-    }
-    var header = request.getHeader(AUTHORIZATION);
-    if (header != null && header.startsWith("Bearer ")) {
-      return header.substring(7);
-    }
-    return null;
-  }
-
-  private TokenResult deliverSessionPair(TokenResult result, HttpServletResponse response) {
+  public void logout(HttpServletResponse response) {
     var security = applicationProperties.security();
-    return switch (security.tokenDelivery()) {
+    switch (security.tokenDelivery()) {
       case COOKIE -> {
         response.addCookie(
             createCookie(
-                security.sessionTokenCookieName(),
-                result.sessionToken(),
-                result.expiresIn(),
-                security.cookieSecure()));
+                security.accessTokenCookieName(), StringUtils.EMPTY, 0, security.cookieSecure()));
+        response.addCookie(
+            createCookie(
+                security.refreshTokenCookieName(), StringUtils.EMPTY, 0, security.cookieSecure()));
+      }
+      case HEADER -> {
+        response.setHeader(X_ACCESS_TOKEN_HEADER, StringUtils.EMPTY);
+        response.setHeader(X_REFRESH_TOKEN_HEADER, StringUtils.EMPTY);
+      }
+      case BODY -> {
+        // No-op: BODY-mode clients hold tokens themselves and discard client-side.
+      }
+    }
+  }
+
+  private TokenResult deliverTokenPair(TokenResult result, HttpServletResponse response) {
+    var security = applicationProperties.security();
+
+    var accessToken = result.accessToken();
+    var refreshToken = result.refreshToken();
+
+    return switch (security.tokenDelivery()) {
+      case COOKIE -> {
+        var isSecure = security.cookieSecure();
+
+        response.addCookie(
+            createCookie(
+                security.accessTokenCookieName(), accessToken, result.expiresIn(), isSecure));
+
         response.addCookie(
             createCookie(
                 security.refreshTokenCookieName(),
-                result.refreshToken(),
+                refreshToken,
                 result.refreshTokenExpiresIn(),
-                security.cookieSecure()));
-        yield null;
+                isSecure));
+
+        yield TokenResult.userOnly(result.user());
       }
       case HEADER -> {
-        response.setHeader("X-Session-Token", result.sessionToken());
-        response.setHeader("X-Refresh-Token", result.refreshToken());
-        yield null;
+        response.setHeader(X_ACCESS_TOKEN_HEADER, accessToken);
+        response.setHeader(X_REFRESH_TOKEN_HEADER, refreshToken);
+
+        yield TokenResult.userOnly(result.user());
       }
       case BODY -> result;
     };

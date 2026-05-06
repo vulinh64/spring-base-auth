@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum TokenType {
-  SESSION("session"),
   ACCESS("access"),
   REFRESH("refresh");
 

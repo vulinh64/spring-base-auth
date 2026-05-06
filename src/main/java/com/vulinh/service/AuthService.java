@@ -1,15 +1,16 @@
 package com.vulinh.service;
 
-import com.vulinh.data.ServiceCodeError;
-import com.vulinh.data.dto.AccessTokenResult;
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.RefreshRequest;
 import com.vulinh.data.dto.TokenResult;
 import com.vulinh.data.dto.TokenType;
+import com.vulinh.data.entity.Account;
 import com.vulinh.data.entity.AccountCredential.CredentialType;
 import com.vulinh.data.repository.AccountRepository;
 import com.vulinh.data.repository.ClientRepository;
-import com.vulinh.exception.ApplicationValidationException;
+import com.vulinh.exception.AccountDisabledException;
+import com.vulinh.exception.ClientNotFoundException;
+import com.vulinh.exception.InvalidTokenException;
 import com.vulinh.service.credential.CredentialStrategies;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -35,26 +36,23 @@ public class AuthService {
             .findByClientIdAndEnabledIsTrue(request.clientId())
             .orElseThrow(
                 () ->
-                    new ApplicationValidationException(
-                        "Invalid client_id: %s".formatted(request.clientId()),
-                        ServiceCodeError.INVALID_CLIENT));
+                    new ClientNotFoundException(
+                        "Invalid client_id: %s".formatted(request.clientId())));
 
     var credentialType = CredentialType.fromGrantType(request.grantType());
+
     var account = credentialStrategies.forType(credentialType).verify(request).getAccount();
 
-    return tokenMinter.mintSessionPair(account, client);
+    var roles = accountRepository.findRoleNames(account.getId(), client.getClientId());
+
+    return tokenMinter.mintTokenPair(account, client, roles);
   }
 
   public TokenResult refresh(RefreshRequest request) {
     var jwt = jwtDecoder.decode(request.refreshToken());
 
     if (!TokenType.REFRESH.getTypeName().equals(jwt.getClaimAsString("typ"))) {
-      throw new ApplicationValidationException(
-          "Refresh endpoint expected typ=refresh", ServiceCodeError.INVALID_TOKEN_TYPE);
-    }
-    if (!jwt.getAudience().contains(TokenMinter.SESSION_AUDIENCE)) {
-      throw new ApplicationValidationException(
-          "Refresh endpoint expected aud=session", ServiceCodeError.INVALID_AUDIENCE);
+      throw new InvalidTokenException("Refresh endpoint expected typ=refresh");
     }
 
     var clientId = jwt.getClaimAsString(IdTokenClaimNames.AZP);
@@ -62,67 +60,21 @@ public class AuthService {
         clientRepository
             .findByClientIdAndEnabledIsTrue(clientId)
             .orElseThrow(
-                () ->
-                    new ApplicationValidationException(
-                        "Invalid client_id: %s".formatted(clientId),
-                        ServiceCodeError.INVALID_CLIENT));
-
-    var account =
-        accountRepository
-            .findById(UUID.fromString(jwt.getSubject()))
-            .orElseThrow(
-                () ->
-                    new ApplicationValidationException(
-                        "Account not found for sub: %s".formatted(jwt.getSubject()),
-                        ServiceCodeError.INVALID_ACCOUNT));
-
-    return tokenMinter.mintSessionPair(account, client);
-  }
-
-  public AccessTokenResult exchange(String sessionToken, String audience) {
-    var jwt = jwtDecoder.decode(sessionToken);
-
-    if (!TokenType.SESSION.getTypeName().equals(jwt.getClaimAsString("typ"))) {
-      throw new ApplicationValidationException(
-          "Exchange endpoint expected typ=session", ServiceCodeError.INVALID_TOKEN_TYPE);
-    }
-    if (!jwt.getAudience().contains(TokenMinter.SESSION_AUDIENCE)) {
-      throw new ApplicationValidationException(
-          "Exchange endpoint expected aud=session", ServiceCodeError.INVALID_AUDIENCE);
-    }
-
-    var originatingClientId = jwt.getClaimAsString(IdTokenClaimNames.AZP);
-
-    var originatingClient =
-        clientRepository
-            .findByClientIdAndEnabledIsTrue(originatingClientId)
-            .orElseThrow(
-                () ->
-                    new ApplicationValidationException(
-                        "Originating client not found: %s".formatted(originatingClientId),
-                        ServiceCodeError.INVALID_CLIENT));
-
-    var targetClient =
-        clientRepository
-            .findByClientIdAndEnabledIsTrue(audience)
-            .orElseThrow(
-                () ->
-                    new ApplicationValidationException(
-                        "Target audience not found: %s".formatted(audience),
-                        ServiceCodeError.INVALID_TARGET_AUDIENCE));
+                () -> new ClientNotFoundException("Invalid client_id: %s".formatted(clientId)));
 
     var accountId = UUID.fromString(jwt.getSubject());
+
     var account =
         accountRepository
             .findById(accountId)
+            .filter(Account::isAccountEnabled)
             .orElseThrow(
                 () ->
-                    new ApplicationValidationException(
-                        "Account not found for sub: %s".formatted(accountId),
-                        ServiceCodeError.INVALID_ACCOUNT));
+                    new AccountDisabledException(
+                        "Account [%s] not active".formatted(accountId)));
 
-    var roles = accountRepository.findRoleNames(accountId, audience);
+    var roles = accountRepository.findRoleNames(account.getId(), clientId);
 
-    return tokenMinter.mintAccess(account, originatingClient, targetClient, roles);
+    return tokenMinter.mintTokenPair(account, client, roles);
   }
 }

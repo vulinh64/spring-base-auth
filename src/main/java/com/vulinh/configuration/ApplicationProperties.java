@@ -13,13 +13,14 @@ public record ApplicationProperties(
 
   public record TopicProperties(EventType type, String topicName) {}
 
+  @SuppressWarnings("java:S6218")
   public record Security(
       TokenDelivery tokenDelivery,
       String issuerServer,
       String jwksPath,
       String discoveryPath,
       String[] noAuthUrls,
-      String sessionTokenCookieName,
+      String accessTokenCookieName,
       String refreshTokenCookieName,
       boolean cookieSecure) {
 

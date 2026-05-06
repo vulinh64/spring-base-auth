@@ -5,6 +5,7 @@ import module java.base;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
+import org.apache.commons.lang3.BooleanUtils;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UuidGenerator;
@@ -47,4 +48,9 @@ public class Account extends AbstractAuditableEntity<UUID> {
       inverseJoinColumns = @JoinColumn(name = "client_role_id"))
   @Builder.Default
   private Set<ClientRole> clientRoles = new LinkedHashSet<>();
+
+  @Transient
+  public boolean isAccountEnabled() {
+    return BooleanUtils.isTrue(isEnabled);
+  }
 }

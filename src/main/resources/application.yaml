@@ -20,8 +20,8 @@ application-properties:
       - "/swagger-ui.html"
       - "/v3/api-docs/**"
       - "/webjars/**"
+    access-token-cookie-name: ${ACCESS_TOKEN_COOKIE_NAME:access_token}
     refresh-token-cookie-name: ${REFRESH_TOKEN_COOKIE_NAME:refresh_token}
-    session-token-cookie-name: ${SESSION_TOKEN_COOKIE_NAME:session_token}
     token-delivery: ${TOKEN_DELIVERY:COOKIE}
 spring:
   cloud.stream:
