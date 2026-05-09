@@ -4,10 +4,6 @@ application-properties:
     peer-databases:
       - spring-base
       - spring-base-event
-  message-topic:
-    key-invalidated:
-      topic-name: ${KEY_INVALIDATED_TOPIC:key-invalidated}
-      type: KEY_INVALIDATED
   security:
     cookie-secure: ${COOKIE_SECURE:true}
     discovery-path: ${DISCOVERY_PATH:/.well-known/openid-configuration}
