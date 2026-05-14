@@ -1,4 +1,5 @@
 application-properties:
+  p6spy.max-length: 10000
   peer-database-bootstrap:
     enabled: ${BOOTSTRAP_PEER_DATABABSE:true}
     peer-databases:

@@ -2,6 +2,7 @@ package com.vulinh;
 
 import com.vulinh.annotation.aspect.ExecutionTimeAspect;
 import com.vulinh.configuration.ApplicationProperties;
+import com.vulinh.utils.MyP6SpyLogging.Configurer;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -15,7 +16,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @EnableCaching
 @EnableAsync
 @EnableJpaAuditing
-@Import(ExecutionTimeAspect.class)
+@Import({ExecutionTimeAspect.class, Configurer.class})
 public class SpringBaseAuthApplication {
 
   static void main(String[] args) {

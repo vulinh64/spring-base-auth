@@ -3,6 +3,7 @@ package com.vulinh.controller.impl;
 import com.vulinh.configuration.ApplicationProperties;
 import com.vulinh.controller.api.AuthAPI;
 import com.vulinh.data.ServiceCodeError;
+import com.vulinh.data.dto.GenericResponse;
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.RefreshRequest;
 import com.vulinh.data.dto.TokenResult;
@@ -14,6 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.oauth2.core.OAuth2AccessToken.TokenType;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,20 +33,22 @@ public class AuthController implements AuthAPI {
   private final ApplicationProperties applicationProperties;
 
   @Override
-  public TokenResult login(LoginRequest request, HttpServletResponse response) {
+  public GenericResponse<TokenResult> login(LoginRequest request, HttpServletResponse response) {
     requireNonBlank(request.grantType(), ServiceCodeError.GRANT_TYPE_REQUIRED);
     requireNonBlank(request.clientId(), ServiceCodeError.CLIENT_ID_REQUIRED);
 
-    return deliverTokenPair(authService.login(request), response);
+    return GenericResponse.success(deliverTokenPair(authService.login(request), response));
   }
 
   @Override
-  public TokenResult refresh(HttpServletRequest request, HttpServletResponse response) {
+  public GenericResponse<TokenResult> refresh(
+      HttpServletRequest request, HttpServletResponse response) {
     var refreshToken = resolveRefreshToken(request);
 
     requireNonBlank(refreshToken, ServiceCodeError.REFRESH_TOKEN_REQUIRED);
 
-    return deliverTokenPair(authService.refresh(new RefreshRequest(refreshToken)), response);
+    return GenericResponse.success(
+        deliverTokenPair(authService.refresh(new RefreshRequest(refreshToken)), response));
   }
 
   private String resolveRefreshToken(HttpServletRequest request) {
@@ -61,7 +65,7 @@ public class AuthController implements AuthAPI {
 
     var authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-    if (authorization.startsWith(BEARER_PREFIX)) {
+    if (Strings.CS.startsWith(authorization, BEARER_PREFIX)) {
       return authorization.substring(BEARER_PREFIX.length()).trim();
     }
 

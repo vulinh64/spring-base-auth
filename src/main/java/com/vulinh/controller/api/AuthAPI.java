@@ -1,5 +1,6 @@
 package com.vulinh.controller.api;
 
+import com.vulinh.data.dto.GenericResponse;
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.TokenResult;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,10 +15,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 public interface AuthAPI {
 
   @PostMapping("/login")
-  TokenResult login(@RequestBody LoginRequest request, HttpServletResponse response);
+  GenericResponse<TokenResult> login(@RequestBody LoginRequest request, HttpServletResponse response);
 
   @PostMapping("/refresh")
-  TokenResult refresh(HttpServletRequest request, HttpServletResponse response);
+  GenericResponse<TokenResult> refresh(HttpServletRequest request, HttpServletResponse response);
 
   @PostMapping("/logout")
   @ResponseStatus(HttpStatus.NO_CONTENT)
