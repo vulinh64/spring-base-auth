@@ -10,9 +10,12 @@ import com.vulinh.exception.ApplicationValidationException;
 import com.vulinh.service.AuthService;
 import com.vulinh.utils.validator.ApplicationError;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.oauth2.core.OAuth2AccessToken.TokenType;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -22,6 +25,8 @@ public class AuthController implements AuthAPI {
   static final String X_ACCESS_TOKEN_HEADER = "X-Access-Token";
   static final String X_REFRESH_TOKEN_HEADER = "X-Refresh-Token";
 
+  private static final String BEARER_PREFIX = TokenType.BEARER + " ";
+
   private final AuthService authService;
   private final ApplicationProperties applicationProperties;
 
@@ -29,13 +34,38 @@ public class AuthController implements AuthAPI {
   public TokenResult login(LoginRequest request, HttpServletResponse response) {
     requireNonBlank(request.grantType(), ServiceCodeError.GRANT_TYPE_REQUIRED);
     requireNonBlank(request.clientId(), ServiceCodeError.CLIENT_ID_REQUIRED);
+
     return deliverTokenPair(authService.login(request), response);
   }
 
   @Override
-  public TokenResult refresh(RefreshRequest request, HttpServletResponse response) {
-    requireNonBlank(request.refreshToken(), ServiceCodeError.REFRESH_TOKEN_REQUIRED);
-    return deliverTokenPair(authService.refresh(request), response);
+  public TokenResult refresh(HttpServletRequest request, HttpServletResponse response) {
+    var refreshToken = resolveRefreshToken(request);
+
+    requireNonBlank(refreshToken, ServiceCodeError.REFRESH_TOKEN_REQUIRED);
+
+    return deliverTokenPair(authService.refresh(new RefreshRequest(refreshToken)), response);
+  }
+
+  private String resolveRefreshToken(HttpServletRequest request) {
+    var cookieName = applicationProperties.security().refreshTokenCookieName();
+    var cookies = request.getCookies();
+
+    if (cookies != null) {
+      for (var cookie : cookies) {
+        if (cookieName.equals(cookie.getName()) && StringUtils.isNotBlank(cookie.getValue())) {
+          return cookie.getValue();
+        }
+      }
+    }
+
+    var authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+
+    if (authorization.startsWith(BEARER_PREFIX)) {
+      return authorization.substring(BEARER_PREFIX.length()).trim();
+    }
+
+    return null;
   }
 
   @Override

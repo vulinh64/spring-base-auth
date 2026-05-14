@@ -2,8 +2,8 @@ application-properties:
   peer-database-bootstrap:
     enabled: ${BOOTSTRAP_PEER_DATABABSE:true}
     peer-databases:
-      - spring-base
-      - spring-base-event
+      - { database-name: spring-base, user: "${SPRING_BASE_USER:${spring.datasource.username}}" }
+      - { database-name: spring-base-event, user: "${SPRING_BASE_EVENT_USER:${spring.datasource.username}}" }
   security:
     cookie-secure: ${COOKIE_SECURE:true}
     discovery-path: ${DISCOVERY_PATH:/.well-known/openid-configuration}

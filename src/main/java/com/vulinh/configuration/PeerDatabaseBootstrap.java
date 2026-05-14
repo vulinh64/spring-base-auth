@@ -1,9 +1,9 @@
 package com.vulinh.configuration;
 
+import module java.sql;
+
+import com.vulinh.configuration.ApplicationProperties.PeerDatabaseBootstrap.PeerDatabase;
 import jakarta.annotation.PostConstruct;
-import java.sql.Connection;
-import java.sql.SQLException;
-import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -32,23 +32,18 @@ public class PeerDatabaseBootstrap {
     try (var connection = dataSource.getConnection()) {
       connection.setAutoCommit(true);
 
-      var appUser = connection.getMetaData().getUserName();
+      for (var peerDatabase : databaseBootstrap.peerDatabases()) {
+        var databaseName = peerDatabase.databaseName();
 
-      if (StringUtils.isEmpty(appUser)
-          || !StringUtils.containsOnly(appUser, SAFE_IDENTIFIER_CHARS)) {
-        throw new IllegalStateException("Unsafe datasource username: " + appUser);
-      }
-
-      for (var database : databaseBootstrap.peerDatabases()) {
-        if (exists(connection, database)) {
-          log.info("Peer database '{}' already exists, skipping...", database);
+        if (exists(connection, databaseName)) {
+          log.info("Peer database '{}' already exists, skipping...", databaseName);
         } else {
-          create(connection, database);
+          create(connection, databaseName);
 
-          log.info("Created peer database '{}'", database);
+          log.info("Created peer database '{}'", databaseName);
         }
 
-        grant(connection, database, appUser);
+        grant(connection, peerDatabase);
       }
     }
   }
@@ -64,10 +59,7 @@ public class PeerDatabaseBootstrap {
   }
 
   private static void create(Connection connection, String databaseName) throws SQLException {
-    if (StringUtils.isEmpty(databaseName)
-        || !StringUtils.containsOnly(databaseName, SAFE_IDENTIFIER_CHARS)) {
-      throw new IllegalArgumentException("Invalid database name: " + databaseName);
-    }
+    checkIdentifier(databaseName);
 
     try (var statement = connection.createStatement()) {
       statement.execute(
@@ -78,14 +70,24 @@ public class PeerDatabaseBootstrap {
     }
   }
 
-  private static void grant(Connection connection, String databaseName, String username)
-      throws SQLException {
+  private static void grant(Connection connection, PeerDatabase peerDatabase) throws SQLException {
+    var user = peerDatabase.user();
+
+    checkIdentifier(user);
+
     try (var statement = connection.createStatement()) {
       statement.execute(
           """
           GRANT ALL PRIVILEGES ON DATABASE "%s" TO "%s"
           """
-              .formatted(databaseName, username));
+              .formatted(peerDatabase.databaseName(), user));
+    }
+  }
+
+  private static void checkIdentifier(String identifier) {
+    if (StringUtils.isEmpty(identifier)
+        || !StringUtils.containsOnly(identifier, SAFE_IDENTIFIER_CHARS)) {
+      throw new IllegalArgumentException("Invalid identifier: " + identifier);
     }
   }
 }

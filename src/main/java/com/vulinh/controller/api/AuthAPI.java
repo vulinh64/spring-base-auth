@@ -1,8 +1,8 @@
 package com.vulinh.controller.api;
 
 import com.vulinh.data.dto.LoginRequest;
-import com.vulinh.data.dto.RefreshRequest;
 import com.vulinh.data.dto.TokenResult;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,7 +17,7 @@ public interface AuthAPI {
   TokenResult login(@RequestBody LoginRequest request, HttpServletResponse response);
 
   @PostMapping("/refresh")
-  TokenResult refresh(@RequestBody RefreshRequest request, HttpServletResponse response);
+  TokenResult refresh(HttpServletRequest request, HttpServletResponse response);
 
   @PostMapping("/logout")
   @ResponseStatus(HttpStatus.NO_CONTENT)
