@@ -1,26 +1,19 @@
 package com.vulinh.data.repository;
 
-import com.vulinh.annotation.ExecutionTime;
 import com.vulinh.data.entity.Account;
-import com.vulinh.data.entity.AccountCredential.CredentialType;
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
-
-import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-public interface AccountRepository extends JpaRepository<Account, UUID> {
+public interface AccountRepository extends BaseRepository<Account, UUID> {
 
   @Query(
       """
-      select a from Account a
-      join a.credentials c
-      where a.username = :username
-      and c.credentialType = :credentialType
-      and c.enabled = true
+      select cr.roleName from Account a
+      join a.clientRoles cr
+      join Client c on c.id = cr.clientId
+      where a.id = :accountId
+        and (c.clientId = :clientId or str(c.id) = :clientId)
       """)
-  @EntityGraph(attributePaths = {"clientRoles", "credentials"})
-  @ExecutionTime
-  Optional<Account> fetchForLogin(String username, CredentialType credentialType);
+  List<String> findRoleNames(UUID accountId, String clientId);
 }

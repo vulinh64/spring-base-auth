@@ -1,13 +1,14 @@
 package com.vulinh.data.dto;
 
+import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
 public enum TokenType {
-  BEARER("Bearer"),
-  REFRESH("Refresh");
+  ACCESS("access"),
+  REFRESH("refresh");
 
-  private final String typeName;
+  @JsonValue private final String typeName;
 }

@@ -1,10 +1,13 @@
 package com.vulinh.data.repository;
 
+import module java.base;
+
 import com.vulinh.data.entity.Client;
+import com.vulinh.data.predicate.ClientPredicate;
 
-import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.querydsl.QuerydslPredicateExecutor;
+public interface ClientRepository extends BaseRepository<Client, UUID> {
 
-public interface ClientRepository
-    extends JpaRepository<Client, UUID>, QuerydslPredicateExecutor<Client> {}
+  default Optional<Client> findByClientIdAndEnabledIsTrue(String clientId) {
+    return findOne(new ClientPredicate().byClientId(clientId).toPredicate());
+  }
+}

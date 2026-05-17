@@ -1,9 +1,5 @@
 package com.vulinh.data.dto;
 
-import java.beans.ConstructorProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record RefreshRequest(String refreshToken) {
-
-  @ConstructorProperties("refresh_token")
-  public RefreshRequest {}
-}
+public record RefreshRequest(@JsonProperty("refresh_token") String refreshToken) {}

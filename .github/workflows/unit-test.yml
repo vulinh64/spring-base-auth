@@ -1,0 +1,35 @@
+name: Java CI with Maven
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SPRING_BASE_COMMONS_VERSION: 3.0.0
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK 25
+      uses: actions/setup-java@v4
+      with:
+        java-version: '25'
+        distribution: 'corretto'
+        cache: maven
+    - name: Download and install spring-base-commons
+      run: |
+        gh release download ${{ env.SPRING_BASE_COMMONS_VERSION }} \
+          --repo vulinh64/spring-base-commons \
+          --pattern "spring-base-commons-${{ env.SPRING_BASE_COMMONS_VERSION }}.jar" \
+          --dir .
+        mvn install:install-file \
+          -Dfile=spring-base-commons-${{ env.SPRING_BASE_COMMONS_VERSION }}.jar \
+          -DgroupId=com.vulinh \
+          -DartifactId=spring-base-commons \
+          -Dversion=${{ env.SPRING_BASE_COMMONS_VERSION }} \
+          -Dpackaging=jar
+      env:
+        GH_TOKEN: ${{ github.token }}
+    - name: Run unit tests
+      run: mvn clean verify

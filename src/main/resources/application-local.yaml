@@ -1,0 +1,4 @@
+application-properties:
+  security:
+    # Cookies served over plain HTTP locally.
+    cookie-secure: false

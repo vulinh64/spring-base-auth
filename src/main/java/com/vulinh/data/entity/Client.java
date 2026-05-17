@@ -3,8 +3,8 @@ package com.vulinh.data.entity;
 import module java.base;
 
 import jakarta.persistence.*;
-import java.util.ArrayList;
 import lombok.*;
+import lombok.experimental.Accessors;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
@@ -13,6 +13,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Accessors(chain = true)
 @SuppressWarnings("java:S2160")
 public class Client extends AbstractAuditableEntity<UUID> {
 
@@ -20,7 +21,6 @@ public class Client extends AbstractAuditableEntity<UUID> {
 
   @Id @UuidGenerator UUID id;
 
-  @Column(unique = true, nullable = false)
   String clientId;
 
   String clientName;
@@ -30,6 +30,8 @@ public class Client extends AbstractAuditableEntity<UUID> {
   int accessTokenValiditySeconds;
 
   int refreshTokenValiditySeconds;
+
+  String serviceApiKeyHash;
 
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "client_id")

@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.13</version>
+        <version>3.5.14</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
@@ -19,7 +19,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!-- https://github.com/vulinh64/spring-base-commons/releases -->
-        <spring-base-commons.version>2.5.0</spring-base-commons.version>
+        <spring-base-commons.version>3.0.0</spring-base-commons.version>
 
         <!-- https://mvnrepository.com/artifact/org.mapstruct/mapstruct -->
         <mapstruct.version>1.6.3</mapstruct.version>
@@ -33,9 +33,6 @@
         <!-- https://mvnrepository.com/artifact/com.github.auties00/optional -->
         <optional.version>1.0</optional.version>
 
-        <!-- https://mvnrepository.com/artifact/com.github.ben-manes.caffeine/caffeine -->
-        <caffeine.version>3.2.3</caffeine.version>
-
         <!-- this should be fixed by Spring Boot in the future -->
         <commons-lang3.version>3.20.0</commons-lang3.version>
 
@@ -44,15 +41,35 @@
 
         <!-- https://mvnrepository.com/artifact/com.github.gavlyukovskiy/p6spy-spring-boot-starter -->
         <p6spy-springboot.version>1.12.1</p6spy-springboot.version>
+
+        <!-- https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-stream-rabbit -->
+        <spring-cloud-starter-stream-rabbit.version>4.3.2</spring-cloud-starter-stream-rabbit.version>
+
+        <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core/versions -->
+        <log4j2.version>2.26.0</log4j2.version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-log4j2</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-oauth2-authorization-server</artifactId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
             <exclusions>
                 <exclusion>
                     <groupId>com.nimbusds</groupId>
@@ -69,9 +86,8 @@
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-            <version>${caffeine.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
             <groupId>org.liquibase</groupId>
@@ -84,8 +100,9 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.hsqldb</groupId>
-            <artifactId>hsqldb</artifactId>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -128,9 +145,24 @@
             <artifactId>spring-base-commons</artifactId>
             <version>${spring-base-commons.version}</version>
         </dependency>
+
+        <!-- Messaging: publish KEY_INVALIDATED events on startup -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-rabbit</artifactId>
+            <version>${spring-cloud-starter-stream-rabbit.version}</version>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
+        <finalName>spring-base-auth</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

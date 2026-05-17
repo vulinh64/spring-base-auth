@@ -6,19 +6,21 @@ import com.vulinh.data.base.AbstractTimestampAuditableEntity;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.LastModifiedBy;
 
 @Getter
 @Setter
 @MappedSuperclass
+@Accessors(chain = true)
 @SuppressWarnings("java:S2160")
 public abstract class AbstractAuditableEntity<T extends Serializable>
     extends AbstractTimestampAuditableEntity<T> {
 
   @Serial private static final long serialVersionUID = 0L;
 
-  @CreatedBy protected String createdBy;
+  @CreatedBy private String createdBy;
 
-  @LastModifiedBy protected String updatedBy;
+  @LastModifiedBy private String updatedBy;
 }

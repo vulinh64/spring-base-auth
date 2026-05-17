@@ -4,6 +4,10 @@ import module java.base;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.Accessors;
+import org.apache.commons.lang3.BooleanUtils;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UuidGenerator;
 
 // To avoid "user" identifier
@@ -13,6 +17,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Accessors(chain = true)
 @SuppressWarnings("java:S2160")
 public class Account extends AbstractAuditableEntity<UUID> {
 
@@ -20,16 +25,19 @@ public class Account extends AbstractAuditableEntity<UUID> {
 
   @Id @UuidGenerator UUID id;
 
-  String username;
+  private String username;
 
-  String email;
+  private String email;
 
-  String firstName;
+  private String firstName;
 
-  String lastName;
+  private String lastName;
+
+  @Builder.Default private Boolean isEnabled = true;
 
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "account_id")
+  @OnDelete(action = OnDeleteAction.CASCADE)
   @Builder.Default
   private Set<AccountCredential> credentials = new LinkedHashSet<>();
 
@@ -40,4 +48,9 @@ public class Account extends AbstractAuditableEntity<UUID> {
       inverseJoinColumns = @JoinColumn(name = "client_role_id"))
   @Builder.Default
   private Set<ClientRole> clientRoles = new LinkedHashSet<>();
+
+  @Transient
+  public boolean isAccountEnabled() {
+    return BooleanUtils.isTrue(isEnabled);
+  }
 }

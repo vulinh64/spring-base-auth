@@ -1,0 +1,67 @@
+services:
+  spring-base-auth:
+    networks:
+      - spring-base-network
+    image: 'spring-base-auth:3.0.0-alpha'
+    container_name: spring-base-auth
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - "8088:8088"
+    environment:
+      - SPRING_PROFILES_ACTIVE=development
+      - POSTGRES_HOST=postgresql
+      - POSTGRES_USERNAME=postgres
+      - SERVER_PORT=8088
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+  postgresql:
+    networks:
+      - spring-base-network
+    image: 'postgres:18.3-alpine3.23'
+    container_name: postgresql
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=spring-base-auth
+    volumes:
+      - postgresql-volume:/var/lib/postgresql
+    healthcheck:
+      test:
+        [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+  rabbitmq:
+    networks:
+      - spring-base-network
+    image: 'rabbitmq:4.2.4-alpine'
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbitmq
+      - RABBITMQ_DEFAULT_PASS=123456
+    volumes:
+      - rabbitmq-volume:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+volumes:
+  postgresql-volume:
+    name: postgresql-volume
+  rabbitmq-volume:
+    name: rabbitmq-volume
+networks:
+  spring-base-network:
+    driver: bridge

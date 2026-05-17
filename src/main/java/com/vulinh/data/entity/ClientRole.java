@@ -4,6 +4,7 @@ import module java.base;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.Accessors;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
@@ -12,6 +13,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Accessors(chain = true)
 @SuppressWarnings("java:S2160")
 public class ClientRole extends AbstractAuditableEntity<UUID> {
 
