@@ -125,4 +125,4 @@ ENTRYPOINT ["java", \
     "-XX:InitialRAMPercentage=50.0", \
     "-XX:MaxMetaspaceSize=512m", \
     "-jar", \
-    "app.jar"]
+    "spring-base-auth.jar"]
