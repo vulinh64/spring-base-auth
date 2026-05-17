@@ -11,6 +11,6 @@ public class OpenApiConfig {
   @Bean
   OpenAPI openAPI() {
     return new OpenAPI()
-        .info(new Info().title("Spring Base Authorization Server").version("3.0.0"));
+        .info(new Info().title("Spring Base Authorization Server").version("3.0.0-alpha"));
   }
 }
