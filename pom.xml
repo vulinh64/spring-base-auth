@@ -30,23 +30,24 @@
         <!-- https://mvnrepository.com/artifact/org.springdoc/springdoc-openapi-starter-webmvc-ui -->
         <springdoc.openapi.version>2.8.16</springdoc.openapi.version>
 
-        <!-- https://mvnrepository.com/artifact/com.github.auties00/optional -->
-        <optional.version>1.0</optional.version>
-
-        <!-- this should be fixed by Spring Boot in the future -->
-        <commons-lang3.version>3.20.0</commons-lang3.version>
-
-        <!-- https://mvnrepository.com/artifact/com.nimbusds/nimbus-jose-jwt -->
-        <nimbus-jose-jwt.version>10.9</nimbus-jose-jwt.version>
-
         <!-- https://mvnrepository.com/artifact/com.github.gavlyukovskiy/p6spy-spring-boot-starter -->
         <p6spy-springboot.version>1.12.1</p6spy-springboot.version>
 
         <!-- https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-stream-rabbit -->
         <spring-cloud-starter-stream-rabbit.version>4.3.2</spring-cloud-starter-stream-rabbit.version>
 
+        <!-- START: CVE fixes -->
+
+        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-lang3/versions -->
+        <commons-lang3.version>3.20.0</commons-lang3.version>
+
+        <!-- https://mvnrepository.com/artifact/io.netty/netty-all/versions -->
+        <netty.version>4.2.13.Final</netty.version>
+
         <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core/versions -->
         <log4j2.version>2.26.0</log4j2.version>
+
+        <!-- END: CVE fixes -->
     </properties>
     <dependencies>
         <dependency>
@@ -70,12 +71,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.nimbusds</groupId>
-                    <artifactId>nimbus-jose-jwt</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -109,11 +104,6 @@
             <artifactId>lombok</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>nimbus-jose-jwt</artifactId>
-            <version>${nimbus-jose-jwt.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
             <version>${mapstruct.version}</version>
@@ -122,11 +112,6 @@
             <groupId>com.github.gavlyukovskiy</groupId>
             <artifactId>p6spy-spring-boot-starter</artifactId>
             <version>${p6spy-springboot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.auties00</groupId>
-            <artifactId>optional</artifactId>
-            <version>${optional.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
