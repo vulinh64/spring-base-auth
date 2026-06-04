@@ -5,46 +5,51 @@
 # Stage 1: Build stage
 # Install the application and its dependencies
 # Create a custom minimal JRE
-FROM amazoncorretto:25-alpine-full AS build
+FROM maven:3.9.14-amazoncorretto-25-alpine AS build
 
 WORKDIR /usr/src/project
 
 ENV JAVA_VERSION=25
-ENV APP_NAME=spring-base-auth.jar
+ENV APP_NAME=app.jar
 ENV DEPS_FILE=deps.info
 
-# Change this when there is an update
 ENV COMMONS_NAME=spring-base-commons
 ENV COMMONS_GROUP_ID=com.vulinh
-ENV COMMONS_VERSION=3.0.0
 ENV GITHUB_USER=vulinh64
 
-# Copy Maven wrapper files
-COPY mvnw ./
-COPY .mvn/ .mvn/
+# Copy main application Maven configuration files
+COPY pom.xml ./
 
-RUN chmod +x mvnw
+# Read the commons version from pom.xml
+RUN echo "Reading ${COMMONS_NAME} version from pom.xml \${spring-base-commons.version}..." \
+    && mvn help:evaluate -Dexpression="spring-base-commons.version" -q -DforceStdout 2>/dev/null \
+        | sed -n '/^[0-9][0-9A-Za-z_.-]*$/ { p; q; }' > commons-version.txt \
+    && COMMONS_VERSION="$(cat commons-version.txt)" \
+    && if [ -z "${COMMONS_VERSION}" ]; then \
+        echo "Failed to evaluate spring-base-commons.version from pom.xml"; \
+        exit 1; \
+    fi \
+    && echo "${COMMONS_VERSION}"
 
 # Download the pre-built JAR from GitHub releases
-RUN wget -O ${COMMONS_NAME}.jar \
-    https://github.com/${GITHUB_USER}/${COMMONS_NAME}/releases/download/${COMMONS_VERSION}/${COMMONS_NAME}-${COMMONS_VERSION}.jar
+RUN COMMONS_VERSION="$(cat commons-version.txt)" \
+    && wget -O ${COMMONS_NAME}.jar \
+        https://github.com/${GITHUB_USER}/${COMMONS_NAME}/releases/download/${COMMONS_VERSION}/${COMMONS_NAME}-${COMMONS_VERSION}.jar
 
 # Install the JAR to local Maven repository
-RUN ./mvnw install:install-file \
+RUN COMMONS_VERSION="$(cat commons-version.txt)" \
+    && mvn install:install-file \
     -Dfile=${COMMONS_NAME}.jar \
     -DgroupId=${COMMONS_GROUP_ID} \
     -DartifactId=${COMMONS_NAME} \
     -Dversion=${COMMONS_VERSION} \
     -Dpackaging=jar
 
-# Copy main application Maven configuration files
-COPY pom.xml ./
-
 # Copy source code
 COPY src/ src/
 
-# Build the application using Maven wrapper
-RUN ./mvnw clean package -DskipTests
+# Build the application using Maven
+RUN mvn clean package -DskipTests
 
 # Extract the JAR to analyze its dependencies
 RUN jar xf target/${APP_NAME}
@@ -80,7 +85,7 @@ ENV PATH=$JAVA_HOME/bin:$JAVA_HOME/lib:$PATH
 ENV USER=spring-user
 ENV GROUP=spring-group
 ENV WORKDIR=app
-ENV APP_NAME=spring-base-auth.jar
+ENV APP_NAME=app.jar
 ENV DEPS_FILE=deps.info
 
 # Copy the custom JRE from the build stage
@@ -125,4 +130,4 @@ ENTRYPOINT ["java", \
     "-XX:InitialRAMPercentage=50.0", \
     "-XX:MaxMetaspaceSize=512m", \
     "-jar", \
-    "spring-base-auth.jar"]
+    "app.jar"]

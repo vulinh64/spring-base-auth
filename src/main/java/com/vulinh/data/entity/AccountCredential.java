@@ -3,6 +3,7 @@ package com.vulinh.data.entity;
 import module java.base;
 
 import com.vulinh.data.ServiceCodeError;
+import com.vulinh.data.base.JpaIdentifiable.ConcreteJpaIdentifiable;
 import com.vulinh.exception.ApplicationValidationException;
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,7 +18,8 @@ import lombok.experimental.Accessors;
 @Builder
 @Accessors(chain = true)
 @SuppressWarnings("java:S2160")
-public class AccountCredential extends AbstractAuditableEntity<UUID> {
+public class AccountCredential extends AbstractAuditableEntity<UUID>
+    implements ConcreteJpaIdentifiable<UUID> {
 
   @Serial private static final long serialVersionUID = 0L;
 

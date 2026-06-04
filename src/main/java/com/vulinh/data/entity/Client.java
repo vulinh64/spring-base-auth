@@ -2,6 +2,7 @@ package com.vulinh.data.entity;
 
 import module java.base;
 
+import com.vulinh.data.base.JpaIdentifiable.DynamicJpaIdentifiable;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.Accessors;
@@ -15,7 +16,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Builder
 @Accessors(chain = true)
 @SuppressWarnings("java:S2160")
-public class Client extends AbstractAuditableEntity<UUID> {
+public class Client extends AbstractAuditableEntity<UUID> implements DynamicJpaIdentifiable<UUID> {
 
   @Serial private static final long serialVersionUID = 0L;
 
