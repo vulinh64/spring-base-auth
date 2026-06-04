@@ -1,16 +1,13 @@
 package com.vulinh.service;
 
+import module java.base;
+
 import com.vulinh.configuration.ApplicationProperties;
+import com.vulinh.data.dto.AccountInfo;
 import com.vulinh.data.dto.TokenResult;
 import com.vulinh.data.dto.TokenType;
-import com.vulinh.data.dto.AccountInfo;
 import com.vulinh.data.entity.Account;
 import com.vulinh.data.entity.Client;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
@@ -42,8 +39,10 @@ public class TokenMinter {
 
       return TokenResult.full(
           AccountInfo.from(account, roles),
-          accessFuture.get(), accessTtl.getSeconds(),
-          refreshFuture.get(), refreshTtl.getSeconds());
+          accessFuture.get(),
+          accessTtl.getSeconds(),
+          refreshFuture.get(),
+          refreshTtl.getSeconds());
     } catch (Exception e) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Failed to mint token pair", e);

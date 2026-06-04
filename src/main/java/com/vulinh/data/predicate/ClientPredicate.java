@@ -1,9 +1,10 @@
 package com.vulinh.data.predicate;
 
+import module java.base;
+
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Predicate;
 import com.vulinh.data.entity.QClient;
-import java.util.UUID;
 
 public final class ClientPredicate {
 
@@ -14,10 +15,9 @@ public final class ClientPredicate {
   }
 
   public ClientPredicate byClientId(String clientId) {
-    predicate.and(
-        isUuid(clientId)
-            ? QClient.client.id.eq(UUID.fromString(clientId))
-            : QClient.client.clientId.eq(clientId));
+    var c = QClient.client;
+
+    predicate.and(isUuid(clientId) ? c.id.eq(UUID.fromString(clientId)) : c.clientId.eq(clientId));
 
     return this;
   }
@@ -36,7 +36,7 @@ public final class ClientPredicate {
     try {
       UUID.fromString(input);
       return true;
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException _) {
       return false;
     }
   }

@@ -1,8 +1,8 @@
 package com.vulinh.data.repository;
 
+import module java.base;
+
 import com.vulinh.data.entity.Account;
-import java.util.List;
-import java.util.UUID;
 import org.springframework.data.jpa.repository.Query;
 
 public interface AccountRepository extends BaseRepository<Account, UUID> {

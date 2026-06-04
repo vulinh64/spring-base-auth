@@ -1,5 +1,7 @@
 package com.vulinh.messaging;
 
+import module java.base;
+
 import com.nimbusds.jose.jwk.JWKMatcher;
 import com.nimbusds.jose.jwk.JWKSelector;
 import com.nimbusds.jose.jwk.source.JWKSource;
@@ -9,7 +11,6 @@ import com.vulinh.data.event.ActionUser;
 import com.vulinh.data.event.EventMessageWrapper;
 import com.vulinh.data.event.payload.KeyInvalidatedEvent;
 import com.vulinh.data.event.payload.KeyInvalidatedEvent.Reason;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.stream.function.StreamBridge;
@@ -26,9 +27,9 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>Reason discrimination.</b> The first event in any given JVM lifetime is published with
  * {@link Reason#STARTUP}; subsequent events in the same JVM (i.e., a hot context refresh) are
- * published with {@link Reason#CONTEXT_REFRESHED}. The discriminator state lives in a static
- * field so it survives the bean re-instantiation that {@code refresh()} causes — a JVM restart
- * resets it; a context refresh does not.
+ * published with {@link Reason#CONTEXT_REFRESHED}. The discriminator state lives in a static field
+ * so it survives the bean re-instantiation that {@code refresh()} causes — a JVM restart resets it;
+ * a context refresh does not.
  *
  * <p><b>Best-effort delivery.</b> If RabbitMQ is unreachable, the failure is logged but does not
  * prevent the application from starting; consumers fall back to Spring's lazy-on-unknown-{@code

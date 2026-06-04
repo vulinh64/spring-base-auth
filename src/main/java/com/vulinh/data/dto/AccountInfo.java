@@ -1,8 +1,8 @@
 package com.vulinh.data.dto;
 
+import module java.base;
+
 import com.vulinh.data.entity.Account;
-import java.util.List;
-import java.util.UUID;
 import lombok.Builder;
 import lombok.With;
 import org.apache.commons.lang3.StringUtils;

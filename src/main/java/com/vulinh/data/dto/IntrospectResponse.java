@@ -1,7 +1,8 @@
 package com.vulinh.data.dto;
 
+import module java.base;
+
 import com.vulinh.utils.CollectionHelper;
-import java.util.Map;
 import lombok.Builder;
 import lombok.With;
 

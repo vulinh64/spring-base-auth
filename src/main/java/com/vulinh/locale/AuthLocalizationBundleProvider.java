@@ -1,6 +1,6 @@
 package com.vulinh.locale;
 
-import java.util.List;
+import module java.base;
 
 /**
  * Registers this service's resource bundles with {@link LocalizationSupport}. Picked up via {@code

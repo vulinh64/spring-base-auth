@@ -1,5 +1,7 @@
 package com.vulinh.service;
 
+import module java.base;
+
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.RefreshRequest;
 import com.vulinh.data.dto.TokenResult;
@@ -12,7 +14,6 @@ import com.vulinh.exception.AccountDisabledException;
 import com.vulinh.exception.ClientNotFoundException;
 import com.vulinh.exception.InvalidTokenException;
 import com.vulinh.service.credential.CredentialStrategies;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -69,9 +70,7 @@ public class AuthService {
             .findById(accountId)
             .filter(Account::isAccountEnabled)
             .orElseThrow(
-                () ->
-                    new AccountDisabledException(
-                        "Account [%s] not active".formatted(accountId)));
+                () -> new AccountDisabledException("Account [%s] not active".formatted(accountId)));
 
     var roles = accountRepository.findRoleNames(account.getId(), clientId);
 

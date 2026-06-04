@@ -1,12 +1,13 @@
 package com.vulinh.exception;
 
+import module java.base;
+
 import com.vulinh.utils.validator.ApplicationError;
-import java.io.Serial;
 
 /**
- * Thrown when a request to {@code /internal/**} cannot be authenticated as a known service —
- * either the {@code X-Service-Key} header is missing, or the presented key does not match any
- * registered client. Mapped to HTTP 401 by {@link GlobalExceptionHandler}.
+ * Thrown when a request to {@code /internal/**} cannot be authenticated as a known service — either
+ * the {@code X-Service-Key} header is missing, or the presented key does not match any registered
+ * client. Mapped to HTTP 401 by {@link GlobalExceptionHandler}.
  */
 public class ServiceAuthenticationException extends ApplicationException {
 
