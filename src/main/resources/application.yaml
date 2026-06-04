@@ -1,7 +1,7 @@
 application-properties:
   p6spy.max-length: 10000
   peer-database-bootstrap:
-    enabled: ${BOOTSTRAP_PEER_DATABABSE:true}
+    enabled: ${BOOTSTRAP_PEER_DATABASE:true}
     peer-databases:
       - { database-name: spring-base, user: "${SPRING_BASE_USER:${spring.datasource.username}}" }
       - { database-name: spring-base-event, user: "${SPRING_BASE_EVENT_USER:${spring.datasource.username}}" }
@@ -45,3 +45,4 @@ decorator.datasource.p6spy:
 management.endpoints.web:
   base-path: '/'
   exposure.include: health
+server.port: ${SERVER_PORT:8080}
