@@ -27,7 +27,7 @@ spring:
         destination: ${application-properties.message-topic.key-invalidated.topic-name}
     default-binder: rabbit
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/spring-base-auth
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:spring-base-auth}
     username: ${POSTGRES_USERNAME:postgres}
     password: ${POSTGRES_PASSWORD:123456}
   liquibase:
