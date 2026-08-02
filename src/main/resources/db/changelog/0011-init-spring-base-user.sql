@@ -23,6 +23,11 @@ VALUES ('00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-0000000
 INSERT INTO account_client_role (account_id, client_role_id)
 VALUES ('00000000-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000012');
 
+-- Every account gets the baseline USER role on admin-cli so it can inspect
+-- its own account info from the admin surface.
+INSERT INTO account_client_role (account_id, client_role_id)
+VALUES ('00000000-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000002');
+
 -- Admin test user for the spring-base team. Same password (123456), distinct account.
 -- Lets the team exercise admin-only endpoints without pinging us for a role grant.
 INSERT INTO account (id, username, email, first_name, last_name, created_by, updated_by,
@@ -43,6 +48,9 @@ VALUES ('00000000-0000-0000-0000-000000000023', '00000000-0000-0000-0000-0000000
 INSERT INTO account_client_role (account_id, client_role_id)
 VALUES ('00000000-0000-0000-0000-000000000022', '00000000-0000-0000-0000-000000000011');
 
+INSERT INTO account_client_role (account_id, client_role_id)
+VALUES ('00000000-0000-0000-0000-000000000022', '00000000-0000-0000-0000-000000000002');
+
 -- Power-user test account for the spring-base team. Same password (123456), distinct account.
 -- Exercises POWER_USER-only endpoints without needing a separate role grant.
 INSERT INTO account (id, username, email, first_name, last_name, created_by, updated_by,
@@ -62,3 +70,6 @@ VALUES ('00000000-0000-0000-0000-000000000025', '00000000-0000-0000-0000-0000000
 
 INSERT INTO account_client_role (account_id, client_role_id)
 VALUES ('00000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000013');
+
+INSERT INTO account_client_role (account_id, client_role_id)
+VALUES ('00000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000002');
