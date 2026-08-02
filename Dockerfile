@@ -107,8 +107,9 @@ RUN jdeps \
 
 # Create a custom JRE containing only the required modules
 # jdk.crypto.ec is required for HTTPS but may not be detected by jdeps
+# jdk.compiler is for custom health check
 RUN jlink \
-    --add-modules "$(cat "${DEPS_FILE}"),jdk.crypto.ec" \
+    --add-modules "$(cat "${DEPS_FILE}"),jdk.crypto.ec,jdk.compiler", \
     --strip-java-debug-attributes \
     --compress 2 \
     --no-header-files \
@@ -135,6 +136,9 @@ RUN addgroup -S "${GROUP}" \
     && mkdir -p "/${WORKDIR}" \
     && chown -R "${USER}:${GROUP}" "/${WORKDIR}"
 
+# Copy the Docker health check companion
+COPY HealthCheck.java /${WORKDIR}/HealthCheck.java
+
 # Copy the application JAR from the build stage
 COPY --from=build \
     "/usr/src/project/target/${APP_NAME}" \
@@ -143,6 +147,12 @@ COPY --from=build \
 WORKDIR "/${WORKDIR}"
 
 USER "${USER}"
+
+# Docker health check
+# Runs `java HealthCheck.java` which internally retries up to 30 seconds
+# timeout must exceed the internal retry window
+HEALTHCHECK --interval=30s --timeout=35s --start-period=60s --retries=3 \
+    CMD ["java", "HealthCheck.java"]
 
 #
 # Run the application with container-aware JVM settings
