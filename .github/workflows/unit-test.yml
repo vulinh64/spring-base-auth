@@ -47,14 +47,16 @@ jobs:
           # Place the POM where Maven resolves locally installed parent artifacts.
           mkdir -p "$PARENT_M2_PATH"
           cp "$PARENT_POM_FILE" "$PARENT_M2_PATH/$PARENT_POM_FILE"
+          # Create _remote.repositories marker to indicate this is a locally installed artifact.
+          echo "# This file marks the artifact as locally installed" > "$PARENT_M2_PATH/_remote.repositories"
           # Remove any prior failed-resolution marker for this artifact.
           rm -f "$PARENT_M2_PATH"/*.lastUpdated
       - name: Read spring-base-commons version
         id: commons-version
         run: |
           echo "Reading spring-base-commons version from pom.xml \${spring-base-commons.version}..."
-          # Evaluate the inherited Maven property and keep only the version value.
-          SPRING_BASE_COMMONS_VERSION="$(./mvnw help:evaluate -Dexpression="spring-base-commons.version" -q -DforceStdout 2>/dev/null | sed -n '/^[0-9][0-9A-Za-z_.-]*$/ { p; q; }')"
+          # Evaluate the inherited Maven property, filtering out warnings and keeping only the version value.
+          SPRING_BASE_COMMONS_VERSION="$(./mvnw help:evaluate -Dexpression="spring-base-commons.version" -q -DforceStdout 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
           # Do not attempt a download when the property is missing or invalid.
           if [ -z "$SPRING_BASE_COMMONS_VERSION" ]; then
             echo "Failed to evaluate spring-base-commons.version from pom.xml"
