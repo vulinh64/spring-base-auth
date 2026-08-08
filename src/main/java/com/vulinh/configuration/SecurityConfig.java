@@ -22,13 +22,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NonNull;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -82,9 +82,11 @@ public class SecurityConfig {
             http,
             new OrRequestMatcher(
                 Stream.concat(
-                        Arrays.stream(security.noAuthUrls()),
-                        Stream.of(security.jwksPath(), security.discoveryPath()))
-                    .map(PathPatternRequestMatcher.withDefaults()::matcher)
+                        Stream.concat(
+                                Arrays.stream(security.noAuthUrls()),
+                                Stream.of(security.jwksPath(), security.discoveryPath()))
+                            .map(PathPatternRequestMatcher.withDefaults()::matcher),
+                        Stream.of(EndpointRequest.toAnyEndpoint()))
                     .toArray(RequestMatcher[]::new)))
         .authorizeHttpRequests(
             authorizeHttpRequestsCustomizer ->
@@ -117,8 +119,7 @@ public class SecurityConfig {
                         jwtConfigurer ->
                             jwtConfigurer
                                 .decoder(
-                                    hardenedJwtDecoder(
-                                        jwkSource, security.issuerServer(), null, TokenType.ACCESS))
+                                    hardenedJwtDecoder(jwkSource, security.issuerServer(), null))
                                 .jwtAuthenticationConverter(plainAuthorityConverter())))
         .build();
   }
@@ -134,10 +135,7 @@ public class SecurityConfig {
       throws Exception {
     var asAdminJwtDecoder =
         hardenedJwtDecoder(
-            jwkSource,
-            applicationProperties.security().issuerServer(),
-            AS_ADMIN_AUDIENCE,
-            TokenType.ACCESS);
+            jwkSource, applicationProperties.security().issuerServer(), AS_ADMIN_AUDIENCE);
 
     return baseStateless(http, PathPatternRequestMatcher.withDefaults().matcher("/admin/**"))
         .authorizeHttpRequests(a -> a.anyRequest().authenticated())
@@ -257,7 +255,7 @@ public class SecurityConfig {
   }
 
   private static JwtDecoder hardenedJwtDecoder(
-      JWKSource<SecurityContext> jwkSource, String issuer, String audience, TokenType typ) {
+      JWKSource<SecurityContext> jwkSource, String issuer, String audience) {
     var processor = new DefaultJWTProcessor<>();
 
     processor.setJWSKeySelector(new JWSVerificationKeySelector<>(JWSAlgorithm.RS256, jwkSource));
@@ -266,7 +264,7 @@ public class SecurityConfig {
 
     var validators = new ArrayList<OAuth2TokenValidator<Jwt>>();
     validators.add(JwtValidators.createDefaultWithIssuer(issuer));
-    validators.add(new JwtTypValidator(typ));
+    validators.add(new JwtTypValidator(TokenType.ACCESS));
     if (audience != null) {
       validators.add(new JwtAudValidator(audience));
     }
@@ -293,7 +291,6 @@ public class SecurityConfig {
   private static HttpSecurity baseStateless(HttpSecurity http, RequestMatcher matcher)
       throws Exception {
     return http.securityMatcher(matcher)
-        .csrf(AbstractHttpConfigurer::disable)
         .sessionManagement(
             sessionManagementConfigurer ->
                 sessionManagementConfigurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

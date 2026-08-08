@@ -17,6 +17,7 @@ ENV PARENT_NAME=spring-base-parent
 ENV COMMONS_NAME=spring-base-commons
 ENV COMMONS_GROUP_ID=com.vulinh
 ENV GITHUB_USER=vulinh64
+ARG HEALTH_CHECK_VERSION=1.0.1
 
 # Copy the main Maven configuration first for dependency-layer caching
 COPY pom.xml ./
@@ -88,6 +89,10 @@ RUN COMMONS_VERSION="$(cat commons-version.txt)" \
 # Copy source code
 COPY src/ src/
 
+# Download the versioned, shared Docker health check source.
+RUN wget -O HealthCheck.java \
+    "https://raw.githubusercontent.com/${GITHUB_USER}/spring-base-squad/${HEALTH_CHECK_VERSION}/health-check/HealthCheck.java"
+
 # Build the application using Maven
 RUN mvn clean package -DskipTests
 
@@ -137,7 +142,7 @@ RUN addgroup -S "${GROUP}" \
     && chown -R "${USER}:${GROUP}" "/${WORKDIR}"
 
 # Copy the Docker health check companion
-COPY HealthCheck.java /${WORKDIR}/HealthCheck.java
+COPY --from=build /usr/src/project/HealthCheck.java /${WORKDIR}/HealthCheck.java
 
 # Copy the application JAR from the build stage
 COPY --from=build \
@@ -149,10 +154,10 @@ WORKDIR "/${WORKDIR}"
 USER "${USER}"
 
 # Docker health check
-# Runs `java HealthCheck.java` which internally retries up to 30 seconds
+# Runs `java HealthCheck.java <url>` which internally retries up to 10 seconds
 # timeout must exceed the internal retry window
 HEALTHCHECK --interval=30s --timeout=35s --start-period=60s --retries=3 \
-    CMD ["java", "HealthCheck.java"]
+    CMD ["java", "HealthCheck.java", "http://localhost:8080/actuator/health/liveness"]
 
 #
 # Run the application with container-aware JVM settings
