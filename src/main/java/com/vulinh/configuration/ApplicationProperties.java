@@ -2,7 +2,10 @@ package com.vulinh.configuration;
 
 import module java.base;
 
+import com.vulinh.data.config.RecordPublicSecurityPath;
+import com.vulinh.data.config.HttpMethodUrl;
 import com.vulinh.data.event.EventType;
+import com.vulinh.utils.CollectionHelper;
 import lombok.Builder;
 import lombok.With;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -29,10 +32,17 @@ public record ApplicationProperties(
       String issuerServer,
       String jwksPath,
       String discoveryPath,
-      String[] noAuthUrls,
+      List<String> noAuthUrls,
+      List<HttpMethodUrl> noAuthMethodUrls,
       String accessTokenCookieName,
       String refreshTokenCookieName,
-      boolean cookieSecure) {
+      boolean cookieSecure)
+      implements RecordPublicSecurityPath {
+
+    public Security {
+      noAuthUrls = CollectionHelper.emptyListIfNull(noAuthUrls);
+      noAuthMethodUrls = CollectionHelper.emptyListIfNull(noAuthMethodUrls);
+    }
 
     public enum TokenDelivery {
       COOKIE,

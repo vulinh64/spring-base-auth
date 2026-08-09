@@ -1,5 +1,6 @@
 package com.vulinh.exception;
 
+import com.vulinh.configuration.SecurityConfiguration;
 import com.vulinh.data.ServiceCodeError;
 import com.vulinh.data.dto.GenericResponse;
 import com.vulinh.locale.LocalizationSupport;
@@ -98,7 +99,7 @@ public class GlobalExceptionHandler extends CommonExceptionHandler {
 
   /**
    * Service-to-AS authentication failure (missing or invalid {@code X-Service-Key}) → 401. The
-   * {@link com.vulinh.configuration.SecurityConfig.ServiceApiKeyFilter} routes its exceptions
+   * {@link SecurityConfiguration.ServiceApiKeyFilter} routes its exceptions
    * through Spring's {@code handlerExceptionResolver} so this handler fires from the filter layer
    * too.
    */

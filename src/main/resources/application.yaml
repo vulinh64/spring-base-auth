@@ -12,10 +12,8 @@ application-properties:
     jwks-path: ${JWKS_PATH:/.well-known/jwks.json}
     no-auth-urls:
       - "/auth/**"
-      - "/swagger-ui/**"
-      - "/swagger-ui.html"
-      - "/v3/api-docs/**"
-      - "/webjars/**"
+      - "${application-properties.security.discovery-path}"
+      - "${application-properties.security.jwks-path}"
     access-token-cookie-name: ${ACCESS_TOKEN_COOKIE_NAME:access_token}
     refresh-token-cookie-name: ${REFRESH_TOKEN_COOKIE_NAME:refresh_token}
     token-delivery: ${TOKEN_DELIVERY:COOKIE}

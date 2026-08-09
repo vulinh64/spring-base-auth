@@ -13,6 +13,7 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
+import com.vulinh.data.config.SecurityPathUtils;
 import com.vulinh.data.dto.TokenType;
 import com.vulinh.exception.ServiceAuthenticationException;
 import jakarta.servlet.FilterChain;
@@ -22,14 +23,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.NonNull;
-import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -47,8 +46,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.function.RequestPredicates;
@@ -59,7 +56,7 @@ import org.springframework.web.servlet.function.ServerResponse;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
-public class SecurityConfig {
+public class SecurityConfiguration {
 
   public static final String AS_ADMIN_AUDIENCE = "admin-cli";
 
@@ -78,16 +75,7 @@ public class SecurityConfig {
   SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
     var security = applicationProperties.security();
 
-    return baseStateless(
-            http,
-            new OrRequestMatcher(
-                Stream.concat(
-                        Stream.concat(
-                                Arrays.stream(security.noAuthUrls()),
-                                Stream.of(security.jwksPath(), security.discoveryPath()))
-                            .map(PathPatternRequestMatcher.withDefaults()::matcher),
-                        Stream.of(EndpointRequest.toAnyEndpoint()))
-                    .toArray(RequestMatcher[]::new)))
+    return SecurityPathUtils.baseStateless(http, SecurityPathUtils.publicApi(security))
         .authorizeHttpRequests(
             authorizeHttpRequestsCustomizer ->
                 authorizeHttpRequestsCustomizer.anyRequest().permitAll())
@@ -106,7 +94,8 @@ public class SecurityConfig {
       throws Exception {
     var security = applicationProperties.security();
 
-    return baseStateless(http, PathPatternRequestMatcher.withDefaults().matcher("/accounts/**"))
+    return SecurityPathUtils.baseStateless(
+            http, PathPatternRequestMatcher.withDefaults().matcher("/accounts/**"))
         .authorizeHttpRequests(
             authorizeHttpRequestsCustomizer ->
                 authorizeHttpRequestsCustomizer.anyRequest().authenticated())
@@ -137,7 +126,8 @@ public class SecurityConfig {
         hardenedJwtDecoder(
             jwkSource, applicationProperties.security().issuerServer(), AS_ADMIN_AUDIENCE);
 
-    return baseStateless(http, PathPatternRequestMatcher.withDefaults().matcher("/admin/**"))
+    return SecurityPathUtils.baseStateless(
+            http, PathPatternRequestMatcher.withDefaults().matcher("/admin/**"))
         .authorizeHttpRequests(a -> a.anyRequest().authenticated())
         .oauth2ResourceServer(
             o ->
@@ -163,7 +153,8 @@ public class SecurityConfig {
     var serviceApiKeyFilter =
         new ServiceApiKeyFilter(interServiceAuthenticator, handlerExceptionResolver);
 
-    return baseStateless(http, PathPatternRequestMatcher.withDefaults().matcher("/internal/**"))
+    return SecurityPathUtils.baseStateless(
+            http, PathPatternRequestMatcher.withDefaults().matcher("/internal/**"))
         .authorizeHttpRequests(
             authorizeHttpRequestsCustomizer ->
                 authorizeHttpRequestsCustomizer.anyRequest().hasAnyAuthority("SERVICE"))
@@ -175,7 +166,7 @@ public class SecurityConfig {
   @Bean
   @Order(5)
   SecurityFilterChain defaultFilterChain(HttpSecurity http) throws Exception {
-    return baseStateless(http, AnyRequestMatcher.INSTANCE)
+    return SecurityPathUtils.baseStateless(http, AnyRequestMatcher.INSTANCE)
         .authorizeHttpRequests(a -> a.anyRequest().denyAll())
         .build();
   }
@@ -286,14 +277,6 @@ public class SecurityConfig {
         Map.entry("jwks_uri", issuer + security.jwksPath()),
         Map.entry("id_token_signing_alg_values_supported", List.of("RS256")),
         Map.entry("subject_types_supported", List.of("public")));
-  }
-
-  private static HttpSecurity baseStateless(HttpSecurity http, RequestMatcher matcher)
-      throws Exception {
-    return http.securityMatcher(matcher)
-        .sessionManagement(
-            sessionManagementConfigurer ->
-                sessionManagementConfigurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
   }
 
   /**
