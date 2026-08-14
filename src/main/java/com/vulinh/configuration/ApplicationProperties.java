@@ -2,12 +2,13 @@ package com.vulinh.configuration;
 
 import module java.base;
 
-import com.vulinh.data.config.RecordPublicSecurityPath;
 import com.vulinh.data.config.HttpMethodUrl;
+import com.vulinh.data.config.RecordPublicSecurityPath;
 import com.vulinh.data.event.EventType;
 import com.vulinh.utils.CollectionHelper;
 import lombok.Builder;
 import lombok.With;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Builder
@@ -34,6 +35,7 @@ public record ApplicationProperties(
       String discoveryPath,
       List<String> noAuthUrls,
       List<HttpMethodUrl> noAuthMethodUrls,
+      List<String> corsAllowedOrigins,
       String accessTokenCookieName,
       String refreshTokenCookieName,
       boolean cookieSecure)
@@ -42,6 +44,10 @@ public record ApplicationProperties(
     public Security {
       noAuthUrls = CollectionHelper.emptyListIfNull(noAuthUrls);
       noAuthMethodUrls = CollectionHelper.emptyListIfNull(noAuthMethodUrls);
+      corsAllowedOrigins =
+          CollectionHelper.emptyListIfNull(corsAllowedOrigins).stream()
+              .filter(StringUtils::isNotBlank)
+              .toList();
     }
 
     public enum TokenDelivery {

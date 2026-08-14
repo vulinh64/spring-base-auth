@@ -44,8 +44,13 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter.HeaderValue;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.function.RequestPredicates;
@@ -61,6 +66,7 @@ public class SecurityConfiguration {
   public static final String AS_ADMIN_AUDIENCE = "admin-cli";
 
   private final ApplicationProperties applicationProperties;
+  private final HandlerExceptionResolver handlerExceptionResolver;
 
   @Bean
   static PasswordEncoder passwordEncoder() {
@@ -72,10 +78,10 @@ public class SecurityConfiguration {
    */
   @Bean
   @Order(1)
-  SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
+  SecurityFilterChain publicFilterChain(HttpSecurity http) {
     var security = applicationProperties.security();
 
-    return SecurityPathUtils.baseStateless(http, SecurityPathUtils.publicApi(security))
+    return applyCommonSecurity(http, SecurityPathUtils.publicApi(security))
         .authorizeHttpRequests(
             authorizeHttpRequestsCustomizer ->
                 authorizeHttpRequestsCustomizer.anyRequest().permitAll())
@@ -90,11 +96,10 @@ public class SecurityConfiguration {
    */
   @Bean
   @Order(2)
-  SecurityFilterChain accountsFilterChain(HttpSecurity http, JWKSource<SecurityContext> jwkSource)
-      throws Exception {
+  SecurityFilterChain accountsFilterChain(HttpSecurity http, JWKSource<SecurityContext> jwkSource) {
     var security = applicationProperties.security();
 
-    return SecurityPathUtils.baseStateless(
+    return applyCommonSecurity(
             http, PathPatternRequestMatcher.withDefaults().matcher("/accounts/**"))
         .authorizeHttpRequests(
             authorizeHttpRequestsCustomizer ->
@@ -120,14 +125,12 @@ public class SecurityConfiguration {
    */
   @Bean
   @Order(3)
-  SecurityFilterChain adminFilterChain(HttpSecurity http, JWKSource<SecurityContext> jwkSource)
-      throws Exception {
+  SecurityFilterChain adminFilterChain(HttpSecurity http, JWKSource<SecurityContext> jwkSource) {
     var asAdminJwtDecoder =
         hardenedJwtDecoder(
             jwkSource, applicationProperties.security().issuerServer(), AS_ADMIN_AUDIENCE);
 
-    return SecurityPathUtils.baseStateless(
-            http, PathPatternRequestMatcher.withDefaults().matcher("/admin/**"))
+    return applyCommonSecurity(http, PathPatternRequestMatcher.withDefaults().matcher("/admin/**"))
         .authorizeHttpRequests(a -> a.anyRequest().authenticated())
         .oauth2ResourceServer(
             o ->
@@ -148,12 +151,11 @@ public class SecurityConfiguration {
   SecurityFilterChain internalFilterChain(
       HttpSecurity http,
       InterServiceAuthenticator interServiceAuthenticator,
-      HandlerExceptionResolver handlerExceptionResolver)
-      throws Exception {
+      HandlerExceptionResolver handlerExceptionResolver) {
     var serviceApiKeyFilter =
         new ServiceApiKeyFilter(interServiceAuthenticator, handlerExceptionResolver);
 
-    return SecurityPathUtils.baseStateless(
+    return applyCommonSecurity(
             http, PathPatternRequestMatcher.withDefaults().matcher("/internal/**"))
         .authorizeHttpRequests(
             authorizeHttpRequestsCustomizer ->
@@ -165,8 +167,8 @@ public class SecurityConfiguration {
   /** Order 5 — catch-all. Default-deny: anything not matched by a higher chain returns 403. */
   @Bean
   @Order(5)
-  SecurityFilterChain defaultFilterChain(HttpSecurity http) throws Exception {
-    return SecurityPathUtils.baseStateless(http, AnyRequestMatcher.INSTANCE)
+  SecurityFilterChain defaultFilterChain(HttpSecurity http) {
+    return applyCommonSecurity(http, AnyRequestMatcher.INSTANCE)
         .authorizeHttpRequests(a -> a.anyRequest().denyAll())
         .build();
   }
@@ -221,6 +223,22 @@ public class SecurityConfiguration {
     return new NimbusJwtEncoder(jwkSource);
   }
 
+  @Bean
+  CorsConfigurationSource corsConfigurationSource() {
+    var security = applicationProperties.security();
+    var configuration = new CorsConfiguration();
+
+    configuration.setAllowCredentials(true);
+    configuration.setAllowedOriginPatterns(security.corsAllowedOrigins());
+    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+    configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Service-Key"));
+    configuration.setExposedHeaders(List.of("X-Access-Token", "X-Refresh-Token"));
+
+    var source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+    return source;
+  }
+
   /**
    * General-purpose decoder used by AuthService for /refresh (which inspects the decoded JWT
    * manually). Only signature + issuer + timestamps are validated here — typ and aud checks are
@@ -243,6 +261,30 @@ public class SecurityConfiguration {
     var converter = new JwtAuthenticationConverter();
     converter.setJwtGrantedAuthoritiesConverter(authorities);
     return converter;
+  }
+
+  /**
+   * Baseline applied to every chain: stateless sessions, a narrow CORS policy, security headers,
+   * and application-standard responses for security failures.
+   */
+  private HttpSecurity applyCommonSecurity(HttpSecurity http, RequestMatcher matcher) {
+    return SecurityPathUtils.baseStateless(http, matcher)
+        .headers(
+            headers ->
+                headers
+                    .xssProtection(xss -> xss.headerValue(HeaderValue.ENABLED_MODE_BLOCK))
+                    .contentSecurityPolicy(csp -> csp.policyDirectives("script-src 'self'")))
+        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        .exceptionHandling(
+            exceptions ->
+                exceptions
+                    .authenticationEntryPoint(this::resolveSecurityException)
+                    .accessDeniedHandler(this::resolveSecurityException));
+  }
+
+  private void resolveSecurityException(
+      HttpServletRequest request, HttpServletResponse response, Exception exception) {
+    handlerExceptionResolver.resolveException(request, response, null, exception);
   }
 
   private static JwtDecoder hardenedJwtDecoder(

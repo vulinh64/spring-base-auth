@@ -20,8 +20,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Builder
 @Accessors(chain = true)
 @SuppressWarnings("java:S2160")
-public class Account extends AbstractAuditableEntity<UUID>
-    implements DynamicJpaIdentifiable<UUID> {
+public class Account extends AbstractAuditableEntity<UUID> implements DynamicJpaIdentifiable<UUID> {
 
   @Serial private static final long serialVersionUID = 0L;
 
