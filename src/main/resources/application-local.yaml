@@ -2,3 +2,5 @@ application-properties:
   security:
     # Cookies served over plain HTTP locally.
     cookie-secure: false
+    # Allow arbitrary local frontend origins; production supplies explicit CORS_ALLOWED_ORIGINS.
+    cors-allowed-origins: "*"

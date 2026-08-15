@@ -14,6 +14,8 @@ application-properties:
       - "/auth/**"
       - "${application-properties.security.discovery-path}"
       - "${application-properties.security.jwks-path}"
+    # Comma-separated origins are accepted through CORS_ALLOWED_ORIGINS. Empty means same-origin only.
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:}
     access-token-cookie-name: ${ACCESS_TOKEN_COOKIE_NAME:access_token}
     refresh-token-cookie-name: ${REFRESH_TOKEN_COOKIE_NAME:refresh_token}
     token-delivery: ${TOKEN_DELIVERY:COOKIE}

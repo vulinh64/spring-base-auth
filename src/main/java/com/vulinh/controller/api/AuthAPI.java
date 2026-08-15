@@ -15,7 +15,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 public interface AuthAPI {
 
   @PostMapping("/login")
-  GenericResponse<TokenResult> login(@RequestBody LoginRequest request, HttpServletResponse response);
+  GenericResponse<TokenResult> login(
+      @RequestBody LoginRequest request, HttpServletResponse response);
 
   @PostMapping("/refresh")
   GenericResponse<TokenResult> refresh(HttpServletRequest request, HttpServletResponse response);

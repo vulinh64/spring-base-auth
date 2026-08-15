@@ -5,6 +5,7 @@ import module java.base;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 
@@ -27,6 +28,7 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
         ? Arrays.stream(cookies)
             .filter(cookie -> cookieName.equals(cookie.getName()))
             .map(Cookie::getValue)
+            .filter(StringUtils::isNotBlank)
             .findFirst()
             .orElseGet(() -> BEARER_TOKEN_RESOLVER.resolve(request))
         : BEARER_TOKEN_RESOLVER.resolve(request);

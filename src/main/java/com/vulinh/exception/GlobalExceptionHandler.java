@@ -7,6 +7,8 @@ import com.vulinh.locale.LocalizationSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -98,10 +100,33 @@ public class GlobalExceptionHandler extends CommonExceptionHandler {
   }
 
   /**
+   * Security-filter authentication failures are resolved through this advice by
+   * SecurityConfiguration.
+   */
+  @ExceptionHandler(AuthenticationException.class)
+  @ResponseStatus(HttpStatus.UNAUTHORIZED)
+  public GenericResponse<Object> handleAuthenticationException(AuthenticationException ex) {
+    log.debug(ex.getMessage());
+
+    return GenericResponse.builder().errorCode(ServiceCodeError.INVALID_TOKEN).build();
+  }
+
+  /**
+   * Security-filter authorization failures are resolved through this advice by
+   * SecurityConfiguration.
+   */
+  @ExceptionHandler(AccessDeniedException.class)
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  public GenericResponse<Object> handleAccessDeniedException(AccessDeniedException ex) {
+    log.debug(ex.getMessage());
+
+    return GenericResponse.builder().errorCode(ServiceCodeError.NO_CLIENT_ACCESS).build();
+  }
+
+  /**
    * Service-to-AS authentication failure (missing or invalid {@code X-Service-Key}) → 401. The
-   * {@link SecurityConfiguration.ServiceApiKeyFilter} routes its exceptions
-   * through Spring's {@code handlerExceptionResolver} so this handler fires from the filter layer
-   * too.
+   * {@link SecurityConfiguration.ServiceApiKeyFilter} routes its exceptions through Spring's {@code
+   * handlerExceptionResolver} so this handler fires from the filter layer too.
    */
   @ExceptionHandler(ServiceAuthenticationException.class)
   @ResponseStatus(HttpStatus.UNAUTHORIZED)
