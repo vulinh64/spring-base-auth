@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.oauth2.core.OAuth2AccessToken.TokenType;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -31,6 +32,11 @@ public class AuthController implements AuthAPI {
 
   private final AuthService authService;
   private final ApplicationProperties applicationProperties;
+
+  @Override
+  public GenericResponse<CsrfToken> csrf(CsrfToken csrfToken) {
+    return GenericResponse.success(csrfToken);
+  }
 
   @Override
   public GenericResponse<TokenResult> login(LoginRequest request, HttpServletResponse response) {

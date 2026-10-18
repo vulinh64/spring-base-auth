@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -16,6 +17,7 @@ import module java.base;
 
 import com.vulinh.AuthIntegrationTestBase;
 import com.vulinh.configuration.ApplicationProperties;
+import com.vulinh.data.dto.GenericResponse;
 import com.vulinh.data.dto.LoginRequest;
 import com.vulinh.data.dto.TokenType;
 import com.vulinh.utils.JsonUtils;
@@ -23,9 +25,11 @@ import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import tools.jackson.core.type.TypeReference;
 
 class AuthControllerIT extends AuthIntegrationTestBase {
 
@@ -39,6 +43,35 @@ class AuthControllerIT extends AuthIntegrationTestBase {
   @Autowired private ApplicationProperties applicationProperties;
 
   @Test
+  void loginAcceptsCsrfTokenObtainedFromPublicEndpoint() throws Exception {
+    var csrfResult =
+        mockMvc
+            .perform(get("/auth/csrf"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.token").isNotEmpty())
+            .andReturn();
+    var session = (MockHttpSession) csrfResult.getRequest().getSession(false);
+    assertNotNull(session);
+    var csrf =
+        JsonUtils.toObject(
+                csrfResult.getResponse().getContentAsString(),
+                new TypeReference<GenericResponse<Map<String, String>>>() {})
+            .data();
+
+    mockMvc
+        .perform(
+            post("/auth/login")
+                .session(session)
+                .header(csrf.get("headerName"), csrf.get("token"))
+                .contentType(APPLICATION_JSON)
+                .content(
+                    JsonUtils.toMinimizedJSON(
+                        new LoginRequest("password", "spring-base", "user", "123456", null))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.user.username").value("user"));
+  }
+
+  @Test
   void localProfileAllowsCorsRequestsFromAnyFrontendOrigin() throws Exception {
     var origin = "http://localhost:5173";
 
@@ -46,9 +79,13 @@ class AuthControllerIT extends AuthIntegrationTestBase {
         .perform(
             options("/auth/login")
                 .header(HttpHeaders.ORIGIN, origin)
-                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "X-CSRF-TOKEN, Content-Type"))
         .andExpect(status().isOk())
-        .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin));
+        .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin))
+        .andExpect(
+            header()
+                .string(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "X-CSRF-TOKEN, Content-Type"));
   }
 
   @Test

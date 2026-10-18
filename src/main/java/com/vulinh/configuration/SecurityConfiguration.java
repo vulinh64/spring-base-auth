@@ -231,7 +231,8 @@ public class SecurityConfiguration {
     configuration.setAllowCredentials(true);
     configuration.setAllowedOriginPatterns(security.corsAllowedOrigins());
     configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Service-Key"));
+    configuration.setAllowedHeaders(
+        List.of("Authorization", "Content-Type", "X-Service-Key", "X-CSRF-TOKEN"));
     configuration.setExposedHeaders(List.of("X-Access-Token", "X-Refresh-Token"));
 
     var source = new UrlBasedCorsConfigurationSource();
