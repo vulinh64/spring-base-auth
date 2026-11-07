@@ -40,7 +40,7 @@ public class ContainersConfiguration extends BaseContainersConfiguration {
     try (var connection = factory.newConnection();
         var channel = connection.createChannel()) {
       channel.exchangeDeclare(KEY_INVALIDATION_TOPIC_NAME, BuiltinExchangeType.TOPIC, true);
-      channel.queueDeclare(KEY_INVALIDATION_QUEUE_NAME, false, false, false, null);
+      channel.queueDeclare(KEY_INVALIDATION_QUEUE_NAME, true, false, false, null);
       channel.queueBind(KEY_INVALIDATION_QUEUE_NAME, KEY_INVALIDATION_TOPIC_NAME, "#");
     } catch (Exception ex) {
       throw new IllegalStateException("Failed to declare startup invalidation queue", ex);

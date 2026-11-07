@@ -82,9 +82,8 @@ public class SecurityConfiguration {
     var security = applicationProperties.security();
 
     return applyCommonSecurity(http, SecurityPathUtils.publicApi(security))
-        .authorizeHttpRequests(
-            authorizeHttpRequestsCustomizer ->
-                authorizeHttpRequestsCustomizer.anyRequest().permitAll())
+        .authorizeHttpRequests(authorizeHttpRequestsCustomizer ->
+            authorizeHttpRequestsCustomizer.anyRequest().permitAll())
         .build();
   }
 
@@ -101,20 +100,16 @@ public class SecurityConfiguration {
 
     return applyCommonSecurity(
             http, PathPatternRequestMatcher.withDefaults().matcher("/accounts/**"))
-        .authorizeHttpRequests(
-            authorizeHttpRequestsCustomizer ->
-                authorizeHttpRequestsCustomizer.anyRequest().authenticated())
-        .oauth2ResourceServer(
-            oauth2ResourceServerCustomizer ->
-                oauth2ResourceServerCustomizer
-                    .bearerTokenResolver(
-                        new CookieBearerTokenResolver(security.accessTokenCookieName()))
-                    .jwt(
-                        jwtConfigurer ->
-                            jwtConfigurer
-                                .decoder(
-                                    hardenedJwtDecoder(jwkSource, security.issuerServer(), null))
-                                .jwtAuthenticationConverter(plainAuthorityConverter())))
+        .authorizeHttpRequests(authorizeHttpRequestsCustomizer ->
+            authorizeHttpRequestsCustomizer.anyRequest().authenticated())
+        .oauth2ResourceServer(oauth2ResourceServerCustomizer ->
+            oauth2ResourceServerCustomizer
+                .bearerTokenResolver(
+                    new CookieBearerTokenResolver(security.accessTokenCookieName()))
+                .jwt(jwtConfigurer ->
+                    jwtConfigurer
+                        .decoder(hardenedJwtDecoder(jwkSource, security.issuerServer(), null))
+                        .jwtAuthenticationConverter(plainAuthorityConverter())))
         .build();
   }
 
@@ -132,12 +127,9 @@ public class SecurityConfiguration {
 
     return applyCommonSecurity(http, PathPatternRequestMatcher.withDefaults().matcher("/admin/**"))
         .authorizeHttpRequests(a -> a.anyRequest().authenticated())
-        .oauth2ResourceServer(
-            o ->
-                o.jwt(
-                    j ->
-                        j.decoder(asAdminJwtDecoder)
-                            .jwtAuthenticationConverter(plainAuthorityConverter())))
+        .oauth2ResourceServer(o ->
+            o.jwt(j ->
+                j.decoder(asAdminJwtDecoder).jwtAuthenticationConverter(plainAuthorityConverter())))
         .build();
   }
 
@@ -157,9 +149,8 @@ public class SecurityConfiguration {
 
     return applyCommonSecurity(
             http, PathPatternRequestMatcher.withDefaults().matcher("/internal/**"))
-        .authorizeHttpRequests(
-            authorizeHttpRequestsCustomizer ->
-                authorizeHttpRequestsCustomizer.anyRequest().hasAnyAuthority("SERVICE"))
+        .authorizeHttpRequests(authorizeHttpRequestsCustomizer ->
+            authorizeHttpRequestsCustomizer.anyRequest().hasAnyAuthority("SERVICE"))
         .addFilterBefore(serviceApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
         .build();
   }
@@ -270,17 +261,15 @@ public class SecurityConfiguration {
    */
   private HttpSecurity applyCommonSecurity(HttpSecurity http, RequestMatcher matcher) {
     return SecurityPathUtils.baseStateless(http, matcher)
-        .headers(
-            headers ->
-                headers
-                    .xssProtection(xss -> xss.headerValue(HeaderValue.ENABLED_MODE_BLOCK))
-                    .contentSecurityPolicy(csp -> csp.policyDirectives("script-src 'self'")))
+        .headers(headers ->
+            headers
+                .xssProtection(xss -> xss.headerValue(HeaderValue.ENABLED_MODE_BLOCK))
+                .contentSecurityPolicy(csp -> csp.policyDirectives("script-src 'self'")))
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-        .exceptionHandling(
-            exceptions ->
-                exceptions
-                    .authenticationEntryPoint(this::resolveSecurityException)
-                    .accessDeniedHandler(this::resolveSecurityException));
+        .exceptionHandling(exceptions ->
+            exceptions
+                .authenticationEntryPoint(this::resolveSecurityException)
+                .accessDeniedHandler(this::resolveSecurityException));
   }
 
   private void resolveSecurityException(

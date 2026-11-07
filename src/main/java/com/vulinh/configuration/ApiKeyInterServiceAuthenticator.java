@@ -35,11 +35,10 @@ public class ApiKeyInterServiceAuthenticator implements InterServiceAuthenticato
     var match =
         clientRepository
             .findOne(new ClientPredicate().byServiceApiKeyHash(sha256Hex(presented)).toPredicate())
-            .orElseThrow(
-                () ->
-                    new ServiceAuthenticationException(
-                        "Invalid %s header".formatted(HEADER_NAME),
-                        ServiceCodeError.INVALID_SERVICE_KEY));
+            .orElseThrow(() ->
+                new ServiceAuthenticationException(
+                    "Invalid %s header".formatted(HEADER_NAME),
+                    ServiceCodeError.INVALID_SERVICE_KEY));
 
     return new UsernamePasswordAuthenticationToken(
         String.valueOf(match.getId()), null, List.of(new SimpleGrantedAuthority(BE_TO_BE_ROLE)));

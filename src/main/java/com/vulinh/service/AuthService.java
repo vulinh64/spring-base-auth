@@ -35,10 +35,8 @@ public class AuthService {
     var client =
         clientRepository
             .findByClientIdAndEnabledIsTrue(request.clientId())
-            .orElseThrow(
-                () ->
-                    new ClientNotFoundException(
-                        "Invalid client_id: %s".formatted(request.clientId())));
+            .orElseThrow(() ->
+                new ClientNotFoundException("Invalid client_id: %s".formatted(request.clientId())));
 
     var credentialType = CredentialType.fromGrantType(request.grantType());
 
